@@ -125,7 +125,7 @@ android {
         )
     }
 
-    namespace = project.property("APP_ID").toString()
+    namespace = "org.fossify.gallery"
 
     lint {
         checkReleaseBuilds = false
