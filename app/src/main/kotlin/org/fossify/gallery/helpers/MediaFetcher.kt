@@ -770,6 +770,11 @@ class MediaFetcher(val context: Context) {
         media.sortWith { o1, o2 ->
             o1 as Medium
             o2 as Medium
+            if (sorting and SORT_BY_DURATION != 0 && o1.isVideo() != o2.isVideo()) {
+                // non-videos always last, regardless of SORT_DESCENDING
+                return@sortWith if (o1.isVideo()) -1 else 1
+            }
+
             var result = when {
                 sorting and SORT_BY_NAME != 0 -> {
                     if (sorting and SORT_USE_NUMERIC_VALUE != 0) {
@@ -789,6 +794,10 @@ class MediaFetcher(val context: Context) {
 
                 sorting and SORT_BY_SIZE != 0 -> o1.size.compareTo(o2.size)
                 sorting and SORT_BY_DATE_MODIFIED != 0 -> o1.modified.compareTo(o2.modified)
+                sorting and SORT_BY_DURATION != 0 -> {
+                    o1.videoDuration.compareTo(o2.videoDuration).takeIf { it != 0 } ?: o1.taken.compareTo(o2.taken)
+                }
+
                 else -> o1.taken.compareTo(o2.taken)
             }
 

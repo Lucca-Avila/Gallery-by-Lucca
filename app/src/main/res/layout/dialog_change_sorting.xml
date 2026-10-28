@@ -56,6 +56,12 @@
                 android:text="@string/date_taken" />
 
             <org.fossify.commons.views.MyCompatRadioButton
+                android:id="@+id/sorting_dialog_radio_duration"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/duration" />
+
+            <org.fossify.commons.views.MyCompatRadioButton
                 android:id="@+id/sorting_dialog_radio_random"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

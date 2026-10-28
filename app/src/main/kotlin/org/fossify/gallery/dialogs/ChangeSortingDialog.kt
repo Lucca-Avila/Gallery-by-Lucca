@@ -11,6 +11,7 @@ import org.fossify.commons.helpers.SORT_BY_COUNT
 import org.fossify.commons.helpers.SORT_BY_CUSTOM
 import org.fossify.commons.helpers.SORT_BY_DATE_MODIFIED
 import org.fossify.commons.helpers.SORT_BY_DATE_TAKEN
+import org.fossify.commons.helpers.SORT_BY_DURATION
 import org.fossify.commons.helpers.SORT_BY_NAME
 import org.fossify.commons.helpers.SORT_BY_PATH
 import org.fossify.commons.helpers.SORT_BY_RANDOM
@@ -60,6 +61,7 @@ class ChangeSortingDialog(
             sortingDialogUseForThisFolder.isChecked = config.hasCustomSorting(pathToUse)
             sortingDialogBottomNote.beVisibleIf(!isDirectorySorting)
             sortingDialogRadioCustom.beVisibleIf(isDirectorySorting)
+            sortingDialogRadioDuration.beVisibleIf(!isDirectorySorting)
         }
 
         activity.getAlertDialogBuilder()
@@ -100,6 +102,7 @@ class ChangeSortingDialog(
             currSorting and SORT_BY_COUNT != 0 -> binding.sortingDialogRadioNumberOfItems
             currSorting and SORT_BY_DATE_MODIFIED != 0 -> binding.sortingDialogRadioLastModified
             currSorting and SORT_BY_DATE_TAKEN != 0 -> binding.sortingDialogRadioDateTaken
+            currSorting and SORT_BY_DURATION != 0 -> binding.sortingDialogRadioDuration
             currSorting and SORT_BY_RANDOM != 0 -> binding.sortingDialogRadioRandom
             currSorting and SORT_BY_CUSTOM != 0 -> binding.sortingDialogRadioCustom
             else -> binding.sortingDialogRadioName
@@ -124,6 +127,7 @@ class ChangeSortingDialog(
             R.id.sorting_dialog_radio_size -> SORT_BY_SIZE
             R.id.sorting_dialog_radio_number_of_items -> SORT_BY_COUNT
             R.id.sorting_dialog_radio_last_modified -> SORT_BY_DATE_MODIFIED
+            R.id.sorting_dialog_radio_duration -> SORT_BY_DURATION
             R.id.sorting_dialog_radio_random -> SORT_BY_RANDOM
             R.id.sorting_dialog_radio_custom -> SORT_BY_CUSTOM
             else -> SORT_BY_DATE_TAKEN
