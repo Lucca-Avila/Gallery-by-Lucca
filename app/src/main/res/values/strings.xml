@@ -305,4 +305,51 @@
         Haven't found some strings? There's more at
         https://github.com/FossifyOrg/Commons/tree/master/commons/src/main/res
     -->
+
+    <!-- Informações para compressão -->
+    <string name="vi_menu">Informações para compressão</string>
+    <string name="vi_title">Informações para compressão</string>
+    <string name="vi_copy">Copiar</string>
+    <string name="vi_copied">Relatório copiado</string>
+    <string name="vi_analyzing">Analisando…</string>
+    <string name="vi_error">Não foi possível analisar o vídeo: %1$s</string>
+    <string name="vi_section_general">Geral</string>
+    <string name="vi_section_video">Vídeo</string>
+    <string name="vi_section_hdr">HDR / cor</string>
+    <string name="vi_section_audio">Áudio</string>
+    <string name="vi_section_subtitles">Legendas</string>
+    <string name="vi_section_codecs">Decodificação / codificação</string>
+    <string name="vi_container">Contêiner</string>
+    <string name="vi_file_size">Tamanho</string>
+    <string name="vi_duration">Duração</string>
+    <string name="vi_overall_bitrate">Bitrate médio total</string>
+    <string name="vi_calculated">tamanho ÷ duração</string>
+    <string name="vi_codec">Codec</string>
+    <string name="vi_resolution">Resolução (bruta)</string>
+    <string name="vi_rotation">Rotação / resolução efetiva</string>
+    <string name="vi_fps">FPS</string>
+    <string name="vi_video_bitrate">Bitrate do vídeo</string>
+    <string name="vi_bpp">Bits por pixel</string>
+    <string name="vi_declared_bitrate">Bitrate declarado no arquivo</string>
+    <string name="vi_extra_video">Trilhas de vídeo extras</string>
+    <string name="vi_no_video">Nenhuma trilha de vídeo</string>
+    <string name="vi_not_scanned">Arquivo grande (&gt; 1,5 GB): varredura pulada, valores estimados</string>
+    <string name="vi_declared">declarado</string>
+    <string name="vi_measured">medido</string>
+    <string name="vi_estimated">estimado</string>
+    <string name="vi_hdr_type">Tipo</string>
+    <string name="vi_bit_depth">Profundidade</string>
+    <string name="vi_ten_bit">10 bits (provável)</string>
+    <string name="vi_eight_bit">8 bits</string>
+    <string name="vi_wide_gamut">gama ampla</string>
+    <string name="vi_sdr">SDR</string>
+    <string name="vi_none">nenhuma</string>
+    <string name="vi_no_decoder">sem decodificador</string>
+    <string name="vi_decoder">Decodifica</string>
+    <string name="vi_encoder">Codifica</string>
+    <string name="vi_yes">sim</string>
+    <string name="vi_no">não</string>
+    <string name="vi_hardware">hardware</string>
+    <string name="vi_software">software</string>
+    <string name="vi_profile_unsupported">profile não suportado</string>
 </resources>

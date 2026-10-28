@@ -50,6 +50,7 @@ import org.fossify.commons.helpers.sumByLong
 import org.fossify.commons.models.FileDirItem
 import org.fossify.commons.views.MyRecyclerView
 import org.fossify.gallery.R
+import org.fossify.gallery.compression.analyzer.VideoInfoDialog
 import org.fossify.gallery.activities.ViewPagerActivity
 import org.fossify.gallery.databinding.PhotoItemGridBinding
 import org.fossify.gallery.databinding.PhotoItemListBinding
@@ -195,6 +196,7 @@ class MediaAdapter(
             findItem(R.id.cab_edit).isVisible = isOneItemSelected
             findItem(R.id.cab_set_as).isVisible = isOneItemSelected
             findItem(R.id.cab_resize).isVisible = canResize(selectedItems)
+            findItem(R.id.cab_compress_info).isVisible = isOneItemSelected && selectedItems.first().isVideo() && !isInRecycleBin
             findItem(R.id.cab_confirm_selection).isVisible = isAGetIntent && allowMultiplePicks && selectedKeys.isNotEmpty()
             findItem(R.id.cab_restore_recycle_bin_files).isVisible = selectedPaths.all { it.startsWith(activity.recycleBinPath) }
             findItem(R.id.cab_create_shortcut).isVisible = isOneItemSelected
@@ -231,6 +233,7 @@ class MediaAdapter(
             R.id.cab_fix_date_taken -> fixDateTaken()
             R.id.cab_set_as -> setAs()
             R.id.cab_resize -> resize()
+            R.id.cab_compress_info -> getFirstSelectedItemPath()?.let { VideoInfoDialog(activity, it) }
             R.id.cab_delete -> checkDeleteConfirmation()
         }
     }

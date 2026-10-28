@@ -23,7 +23,8 @@
 
 ## Etapa 3: Compressão de UM vídeo (sem fila)
 - [ ] Adicionar dependência Media3 Transformer.
-- [ ] Criar um "analisador de vídeo" que lê resolução, codec, bitrate, fps, rotação, trilhas de áudio/legenda e HDR do arquivo (MediaExtractor/MediaMetadataRetriever). Será usado em todas as etapas seguintes.
+- [x] Criar um "analisador de vídeo" que lê resolução, codec, bitrate, fps, rotação, trilhas de áudio/legenda e HDR do arquivo (MediaExtractor/MediaMetadataRetriever). Será usado em todas as etapas seguintes.
+  - Pendente de teste com amostras reais: vários áudios, HDR, vertical, >1,5 GB, AV1/VP9 (cobrir na Etapa 9)
 - [ ] Testar com uma amostra variada de vídeos baixados (MP4, MKV, WebM; H.264, HEVC, VP9, AV1; com várias trilhas de áudio).
 - [ ] Ação "Comprimir" no vídeo; tela simples com opções (resolução, H.265, bitrate).
 - [ ] Seletor de destino com atalhos (mesma pasta do original, COMPRIMIDOS, escolher outra); lembrar a última escolha.

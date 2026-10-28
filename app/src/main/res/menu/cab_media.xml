@@ -88,6 +88,11 @@
         android:title="@string/resize"
         app:showAsAction="never" />
     <item
+        android:id="@+id/cab_compress_info"
+        android:showAsAction="never"
+        android:title="@string/vi_menu"
+        app:showAsAction="never" />
+    <item
         android:id="@+id/cab_edit"
         android:icon="@drawable/ic_edit_vector"
         android:title="@string/edit"
