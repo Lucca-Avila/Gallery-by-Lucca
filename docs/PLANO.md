@@ -22,22 +22,22 @@
 - [x] Testar numa pasta só com vídeos e numa pasta mista.
 
 ## Etapa 3: Compressão de UM vídeo (sem fila)
-- [ ] Adicionar dependência Media3 Transformer.
+- [x] Adicionar dependência Media3 Transformer (transformer, effect e common, na versão do exoplayer).
 - [x] Criar um "analisador de vídeo" que lê resolução, codec, bitrate, fps, rotação, trilhas de áudio/legenda e HDR do arquivo (MediaExtractor/MediaMetadataRetriever). Será usado em todas as etapas seguintes.
-  - Pendente de teste com amostras reais: vários áudios, HDR, vertical, >1,5 GB, AV1/VP9 (cobrir na Etapa 9)
-- [ ] Testar com uma amostra variada de vídeos baixados (MP4, MKV, WebM; H.264, HEVC, VP9, AV1; com várias trilhas de áudio).
-- [ ] Ação "Comprimir" no vídeo; tela simples com opções (resolução, H.265, bitrate).
-- [ ] Seletor de destino com atalhos (mesma pasta do original, COMPRIMIDOS, escolher outra); lembrar a última escolha.
-- [ ] Salvar o arquivo novo no destino; sufixo se o nome já existir (nunca sobrescrever).
-- [ ] Mostrar progresso e resultado (tamanho antes/depois).
+- [x] Testar com uma amostra variada de vídeos baixados. Exceção: áudio 5.1 sem amostra (ver Etapa 9).
+- [x] Ação "Comprimir" no menu de seleção (1 vídeo); tela com resolução (original/1080p/720p/480p, nunca aumenta) e presets por bits por pixel: Qualidade 0,055, Equilibrado 0,040 (padrão, calibrado pelo usuário), Máxima economia 0,030 e Personalizado. Alvo = bpp × L × A × fps, teto de 80% do bitrate de vídeo do original, piso de 400 kbps. HEVC fixo.
+- [x] Estimativa de tamanho ao lado de cada preset "≈ X MB (−Y%)" (antecipada da Etapa 8) e aviso "Já está bem comprimido; ganho pequeno" (alvo acima do teto de 80% ou original HEVC/VP9/AV1).
+- [x] Regras de áudio: AAC até 128 kbps em passthrough; senão AAC 128 kbps (96 no Máxima economia); mais de 2 canais com downmix para estéreo.
+- [x] Seletor de destino com atalhos (mesma pasta do original, COMPRIMIDOS = Movies/COMPRIMIDOS, escolher outra pasta com o seletor do Fossify); lembra a última escolha.
+- [x] Gravação: temporário no cache (apagado em qualquer desfecho) -> gravação direta + MediaScannerConnection; fallback MediaStore (IS_PENDING) em Movies/COMPRIMIDOS com aviso quando a gravação direta falha.
+- [x] Nome `<original>_comp_q<N>.mp4` (N = bpp real do alvo × 1000), `_2` etc. se já existir, sem empilhar sufixos antigos; nunca sobrescreve.
+- [x] Mostrar progresso (tela ligada), cancelamento e resultado (tamanho antes/depois, tempo, bitrate pedido x real, nome final).
 
-## Etapa 4: Regras do preset "Inteligente"
-- [ ] >1080p -> 1080p; <=1080p mantém resolução; bitrate alvo adaptativo (a partir do bitrate real do arquivo, teto ~70% do original, nunca aumentar).
-- [ ] Pular/avisar quando o vídeo já estiver eficiente (economia prevista < 20%).
-- [ ] Tratar trilhas de áudio múltiplas (escolher trilha) e avisar sobre legendas descartadas.
-- [ ] Descartar resultado se não ficar menor; avisar.
-- [ ] Opção manual de reduzir resolução.
-- [ ] Calibrar bitrates alvo comparando qualidade no celular.
+## Etapa 4: Complementos do preset "Inteligente"
+- [ ] Escolha da trilha de áudio (hoje só a trilha padrão é mantida).
+- [ ] Avisar sobre legendas descartadas.
+- [ ] Descartar o resultado se ficar maior que o original; avisar.
+- [ ] Calibração final dos bpp dos presets (comparando qualidade no celular).
 
 ## Etapa 5: Preservar data e apagar original
 - [ ] Copiar data de gravação/modificação do original para o comprimido (MediaStore + metadados do MP4).
@@ -53,12 +53,14 @@
 ## Etapa 7: Marca de "já comprimido"
 - [ ] Protótipo: gravar marca nos metadados do MP4; verificar se sobrevive a mover/copiar.
 - [ ] Registro no banco como reforço.
+- [ ] Detecção de "já comprimido" considera os três sinais: sufixo `_comp_q<N>` no nome, marca nos metadados e registro no banco.
 - [ ] Selo visual na galeria; aviso ao tentar recomprimir.
 
 ## Etapa 8: Estimativa de tamanho
-- [ ] Calcular tamanho previsto (bitrate x duração + áudio).
-- [ ] Mostrar "original / resolução original / 720p" antes de comprimir.
+(A estimativa por preset já existe desde a Etapa 3.)
+- [ ] Mostrar "original / resolução original / 720p" lado a lado antes de comprimir, se ainda não existir.
 
 ## Etapa 9: Polimento
 - [ ] Vídeos HDR/10 bits, 60 fps, formatos que o celular não decodifica, arquivos corrompidos, vídeos muito longos, pouco espaço em disco.
 - [ ] Ajustes de interface e correção de bugs.
+- Pendente de teste com amostras reais: áudio 5.1/7.1 (downmix), canais desconhecidos, vídeo vertical, 4K/HDR, MKV com várias trilhas e legendas, arquivos maiores que 1,5 GB.

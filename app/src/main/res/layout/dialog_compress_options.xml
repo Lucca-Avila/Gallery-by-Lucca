@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="@dimen/activity_margin">
+
+        <org.fossify.commons.views.MyTextView
+            android:id="@+id/compress_message"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/cmp_analyzing" />
+
+        <LinearLayout
+            android:id="@+id/compress_content"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <org.fossify.commons.views.MyTextView
+                android:id="@+id/compress_source"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="13sp" />
+
+            <org.fossify.commons.views.MyTextView
+                android:id="@+id/compress_warnings"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/small_margin"
+                android:textSize="13sp" />
+
+            <org.fossify.commons.views.MyTextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/activity_margin"
+                android:text="@string/cmp_resolution"
+                android:textStyle="bold" />
+
+            <RadioGroup
+                android:id="@+id/compress_resolution_group"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <org.fossify.commons.views.MyCompatRadioButton
+                    android:id="@+id/compress_res_original"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content" />
+
+                <org.fossify.commons.views.MyCompatRadioButton
+                    android:id="@+id/compress_res_1080"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content" />
+
+                <org.fossify.commons.views.MyCompatRadioButton
+                    android:id="@+id/compress_res_720"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content" />
+
+                <org.fossify.commons.views.MyCompatRadioButton
+                    android:id="@+id/compress_res_480"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content" />
+            </RadioGroup>
+
+            <org.fossify.commons.views.MyTextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/activity_margin"
+                android:text="@string/cmp_quality"
+                android:textStyle="bold" />
+
+            <RadioGroup
+                android:id="@+id/compress_preset_group"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <org.fossify.commons.views.MyCompatRadioButton
+                    android:id="@+id/compress_preset_quality"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content" />
+
+                <org.fossify.commons.views.MyCompatRadioButton
+                    android:id="@+id/compress_preset_balanced"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content" />
+
+                <org.fossify.commons.views.MyCompatRadioButton
+                    android:id="@+id/compress_preset_saving"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content" />
+
+                <org.fossify.commons.views.MyCompatRadioButton
+                    android:id="@+id/compress_preset_custom"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content" />
+            </RadioGroup>
+
+            <org.fossify.commons.views.MyTextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/cmp_quality_legend"
+                android:textSize="12sp" />
+
+            <org.fossify.commons.views.MySeekBar
+                android:id="@+id/compress_quality_seek"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="100"
+                android:visibility="gone" />
+
+            <org.fossify.commons.views.MyTextView
+                android:id="@+id/compress_target_info"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="13sp" />
+
+            <org.fossify.commons.views.MyTextView
+                android:id="@+id/compress_efficient_warning"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/small_margin"
+                android:text="@string/cmp_warn_efficient"
+                android:textColor="#FFB300"
+                android:textStyle="bold"
+                android:visibility="gone" />
+
+            <org.fossify.commons.views.MyTextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/activity_margin"
+                android:text="@string/cmp_destination"
+                android:textStyle="bold" />
+
+            <RadioGroup
+                android:id="@+id/compress_dest_group"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <org.fossify.commons.views.MyCompatRadioButton
+                    android:id="@+id/compress_dest_same"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/cmp_dest_same" />
+
+                <org.fossify.commons.views.MyCompatRadioButton
+                    android:id="@+id/compress_dest_comprimidos"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/cmp_dest_comprimidos" />
+
+                <org.fossify.commons.views.MyCompatRadioButton
+                    android:id="@+id/compress_dest_other"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/cmp_dest_other" />
+            </RadioGroup>
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>
