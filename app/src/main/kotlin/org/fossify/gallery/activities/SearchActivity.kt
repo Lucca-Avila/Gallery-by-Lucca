@@ -165,6 +165,14 @@ class SearchActivity : SimpleActivity(), MediaOperationsListener {
             return
         }
 
+        if (config.openInSamsungPlayer) {
+            openInSamsungPlayer(path) { openVideoWithConfiguredPlayer(path) }
+        } else {
+            openVideoWithConfiguredPlayer(path)
+        }
+    }
+
+    private fun openVideoWithConfiguredPlayer(path: String) {
         when (config.videoPlayerType) {
             VIDEO_PLAYER_SYSTEM -> openPath(path = path, forceChooser = false)
             VIDEO_PLAYER_APP -> if (config.gestureVideoPlayer) launchGesturePlayer(path) else openInViewPager(path)

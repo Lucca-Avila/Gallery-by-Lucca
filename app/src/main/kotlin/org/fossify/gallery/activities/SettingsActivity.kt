@@ -65,6 +65,7 @@ class SettingsActivity : SimpleActivity() {
         setupAutoplayVideos()
         setupRememberLastVideo()
         setupLoopVideos()
+        setupOpenInSamsungPlayer()
         setupOpenVideosOnSeparateScreen()
         setupOnVideoTap()
         setupMaxBrightness()
@@ -289,6 +290,14 @@ class SettingsActivity : SimpleActivity() {
         binding.settingsLoopVideosHolder.setOnClickListener {
             binding.settingsLoopVideos.toggle()
             config.loopVideos = binding.settingsLoopVideos.isChecked
+        }
+    }
+
+    private fun setupOpenInSamsungPlayer() {
+        binding.settingsOpenInSamsungPlayer.isChecked = config.openInSamsungPlayer
+        binding.settingsOpenInSamsungPlayerHolder.setOnClickListener {
+            binding.settingsOpenInSamsungPlayer.toggle()
+            config.openInSamsungPlayer = binding.settingsOpenInSamsungPlayer.isChecked
         }
     }
 
@@ -921,6 +930,7 @@ class SettingsActivity : SimpleActivity() {
                 put(LOOP_VIDEOS, config.loopVideos)
                 put(GESTURE_VIDEO_PLAYER, config.gestureVideoPlayer)
                 put(VIDEO_PLAYER_TYPE, config.videoPlayerType)
+                put(OPEN_IN_SAMSUNG_PLAYER, config.openInSamsungPlayer)
                 put(ALLOW_VIDEO_GESTURES, config.allowVideoGestures)
                 put(ANIMATE_GIFS, config.animateGifs)
                 put(CROP_THUMBNAILS, config.cropThumbnails)
@@ -1067,6 +1077,7 @@ class SettingsActivity : SimpleActivity() {
                 LOOP_VIDEOS -> config.loopVideos = value.toBoolean()
                 GESTURE_VIDEO_PLAYER -> config.gestureVideoPlayer = value.toBoolean()
                 VIDEO_PLAYER_TYPE -> config.videoPlayerType = value.toInt()
+                OPEN_IN_SAMSUNG_PLAYER -> config.openInSamsungPlayer = value.toBoolean()
                 ALLOW_VIDEO_GESTURES -> config.allowVideoGestures = value.toBoolean()
                 ANIMATE_GIFS -> config.animateGifs = value.toBoolean()
                 CROP_THUMBNAILS -> config.cropThumbnails = value.toBoolean()

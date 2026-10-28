@@ -283,6 +283,21 @@
             </RelativeLayout>
 
             <RelativeLayout
+                android:id="@+id/settings_open_in_samsung_player_holder"
+                style="@style/SettingsHolderSwitchStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <org.fossify.commons.views.MyMaterialSwitch
+                    android:id="@+id/settings_open_in_samsung_player"
+                    style="@style/SettingsSwitchStyle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/open_in_samsung_player" />
+
+            </RelativeLayout>
+
+            <RelativeLayout
                 android:id="@+id/settings_open_videos_on_separate_screen_holder"
                 style="@style/SettingsHolderSwitchStyle"
                 android:layout_width="match_parent"

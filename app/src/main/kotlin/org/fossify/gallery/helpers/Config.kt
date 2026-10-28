@@ -217,6 +217,10 @@ class Config(context: Context) : BaseConfig(context) {
         get() = prefs.getBoolean(MUTE_VIDEOS, false)
         set(muteVideos) = prefs.edit().putBoolean(MUTE_VIDEOS, muteVideos).apply()
 
+    var openInSamsungPlayer: Boolean
+        get() = prefs.getBoolean(OPEN_IN_SAMSUNG_PLAYER, true)
+        set(openInSamsungPlayer) = prefs.edit().putBoolean(OPEN_IN_SAMSUNG_PLAYER, openInSamsungPlayer).apply()
+
     var gestureVideoPlayer: Boolean
         get() = prefs.getBoolean(GESTURE_VIDEO_PLAYER, false)
         set(gestureVideoPlayer) = prefs.edit().putBoolean(GESTURE_VIDEO_PLAYER, gestureVideoPlayer)

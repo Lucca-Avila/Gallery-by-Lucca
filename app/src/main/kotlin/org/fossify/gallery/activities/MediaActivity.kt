@@ -79,6 +79,7 @@ import org.fossify.gallery.extensions.launchSettings
 import org.fossify.gallery.extensions.launchGesturePlayer
 import org.fossify.gallery.extensions.mediaDB
 import org.fossify.gallery.extensions.movePathsInRecycleBin
+import org.fossify.gallery.extensions.openInSamsungPlayer
 import org.fossify.gallery.extensions.openPath
 import org.fossify.gallery.extensions.openRecycleBin
 import org.fossify.gallery.extensions.restoreRecycleBinPaths
@@ -971,11 +972,19 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
                 return
             }
 
-            when (config.videoPlayerType) {
-                VIDEO_PLAYER_SYSTEM -> openSystemDefaultPlayer(path)
-                VIDEO_PLAYER_APP -> if (config.gestureVideoPlayer) launchGesturePlayer(path) else openInViewPager(path)
-                else -> openInViewPager(path) // unreachable by design
+            if (config.openInSamsungPlayer) {
+                openInSamsungPlayer(path) { openVideoWithConfiguredPlayer(path) }
+            } else {
+                openVideoWithConfiguredPlayer(path)
             }
+        }
+    }
+
+    private fun openVideoWithConfiguredPlayer(path: String) {
+        when (config.videoPlayerType) {
+            VIDEO_PLAYER_SYSTEM -> openSystemDefaultPlayer(path)
+            VIDEO_PLAYER_APP -> if (config.gestureVideoPlayer) launchGesturePlayer(path) else openInViewPager(path)
+            else -> openInViewPager(path) // unreachable by design
         }
     }
 
