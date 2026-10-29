@@ -52,7 +52,16 @@ class QueueRunner(context: Context, private val callbacks: Callbacks) {
         if (active) return
         active = true
         running = true
-        CompressionPrefs(context).queueInterrupted = CompressionPrefs.INTERRUPTED_NONE
+        val prefs = CompressionPrefs(context)
+        prefs.queueInterrupted = CompressionPrefs.INTERRUPTED_NONE
+        // O resumo acumula entre pausas e retomadas; recomeça quando a execução anterior esvaziou a fila.
+        val previous = prefs.lastRun?.takeIf { it.reason != CompressionPrefs.LastRun.REASON_FINISHED } ?: CompressionPrefs.LastRun()
+        stats.done = previous.done
+        stats.failed = previous.failed
+        stats.discarded = previous.discarded
+        stats.canceled = previous.canceled
+        stats.savedBytes = previous.savedBytes
+        persistRun(CompressionPrefs.LastRun.REASON_RUNNING)
         QueueRepository.notifyChanged()
         next()
     }
@@ -88,33 +97,49 @@ class QueueRunner(context: Context, private val callbacks: Callbacks) {
         endItem(item.copy(state = QueueItem.STATE_CANCELED, phase = QueueItem.PHASE_NONE, message = context.getString(R.string.cmp_q_skipped)))
     }
 
+    /** Cancela todos os aguardando e o item atual; a fila para quando não sobrar nada. */
+    fun cancelAll() {
+        QueueRepository.cancelWaiting(context) { count ->
+            stats.canceled += count
+            persistRun(CompressionPrefs.LastRun.REASON_RUNNING)
+        }
+        skipCurrent()
+    }
+
     private fun next() {
         if (pauseAfterCurrent) {
             stop(stopReason ?: StopReason.PAUSED)
             return
         }
-        QueueRepository.io(context, { dao -> dao.firstWaiting()?.let { it to processed + dao.getPending().size } }) { found ->
+        // Pegar o próximo e marcá-lo como em andamento é uma operação só: remover ou cancelar na tela não o pega no meio.
+        QueueRepository.io(context, { dao ->
+            dao.firstWaiting()?.let { waiting ->
+                val resume = waiting.phase == QueueItem.PHASE_PUBLISHED
+                val item = if (resume) {
+                    waiting.copy(state = QueueItem.STATE_RUNNING, progress = 0, phase = QueueItem.PHASE_PUBLISHED)
+                } else {
+                    waiting.copy(
+                        state = QueueItem.STATE_RUNNING, progress = 0, phase = QueueItem.PHASE_COMPRESSING,
+                        startedAt = System.currentTimeMillis(), finishedAt = null, compressMs = null,
+                    )
+                }
+                dao.update(item)
+                item to processed + dao.getPending().size
+            }
+        }) { found ->
             if (!active) return@io
             if (found == null) stop(StopReason.FINISHED) else process(found.first, found.second)
         }
     }
 
-    private fun process(waiting: QueueItem, total: Int) {
-        val resume = waiting.phase == QueueItem.PHASE_PUBLISHED
-        val item = if (resume) {
-            waiting.copy(state = QueueItem.STATE_RUNNING, progress = 0, phase = QueueItem.PHASE_PUBLISHED)
-        } else {
-            waiting.copy(
-                state = QueueItem.STATE_RUNNING, progress = 0, phase = QueueItem.PHASE_COMPRESSING,
-                startedAt = System.currentTimeMillis(), finishedAt = null, compressMs = null,
-            )
-        }
+    private fun process(item: QueueItem, total: Int) {
+        val resume = item.phase == QueueItem.PHASE_PUBLISHED
         current = item
         skipRequested = false
         lastPercent = -1
         acquireWakeLock()
         val index = processed + 1
-        QueueRepository.io(context, { dao -> dao.update(item) }) { QueueRepository.notifyChanged() }
+        QueueRepository.notifyChanged()
         callbacks.onProgress(item, index, total, if (resume) null else 0)
 
         ensureBackgroundThread {
@@ -287,8 +312,11 @@ class QueueRunner(context: Context, private val callbacks: Callbacks) {
         if (counted) processed++
         releaseWakeLock()
         val ended = if (item.state == QueueItem.STATE_WAITING) item else item.copy(finishedAt = System.currentTimeMillis())
+        if (counted) persistRun(CompressionPrefs.LastRun.REASON_RUNNING)
+        QueueEta.record(CompressionPrefs(context), ended)
         QueueRepository.io(context, { dao -> dao.update(ended) }) {
             QueueRepository.notifyChanged()
+            if (ended.state == QueueItem.STATE_DONE) QueueRepository.notifyCompleted()
             next()
         }
     }
@@ -299,8 +327,22 @@ class QueueRunner(context: Context, private val callbacks: Callbacks) {
         running = false
         releaseWakeLock()
         if (reason == StopReason.TIME_LIMIT) CompressionPrefs(context).queueInterrupted = CompressionPrefs.INTERRUPTED_TIME_LIMIT
+        persistRun(
+            when (reason) {
+                StopReason.FINISHED -> CompressionPrefs.LastRun.REASON_FINISHED
+                StopReason.PAUSED -> CompressionPrefs.LastRun.REASON_PAUSED
+                StopReason.TIME_LIMIT -> CompressionPrefs.LastRun.REASON_TIME_LIMIT
+            }
+        )
         QueueRepository.notifyChanged()
         callbacks.onStopped(reason, stats)
+    }
+
+    /** Grava o resumo acumulado, para a tela da fila mostrar mesmo com as notificações bloqueadas. */
+    private fun persistRun(reason: Int) {
+        CompressionPrefs(context).lastRun = CompressionPrefs.LastRun(
+            stats.done, stats.failed, stats.discarded, stats.canceled, stats.savedBytes, System.currentTimeMillis(), reason
+        )
     }
 
     private fun acquireWakeLock() {

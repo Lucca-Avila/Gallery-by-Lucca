@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/dim_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000">
+
+    <LinearLayout
+        android:id="@+id/dim_content"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <TextView
+            android:id="@+id/dim_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#3A3A3A"
+            android:textSize="26sp"
+            tools:text="Comprimindo · 42%" />
+
+        <TextView
+            android:id="@+id/dim_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:maxWidth="280dp"
+            android:textColor="#3A3A3A"
+            android:textSize="14sp"
+            tools:text="video.mp4" />
+
+        <TextView
+            android:id="@+id/dim_eta"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textColor="#3A3A3A"
+            android:textSize="14sp"
+            tools:text="Restante: ≈ 12 min (3 itens)" />
+
+        <TextView
+            android:id="@+id/dim_hint"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/cmp_q_dim_hint"
+            android:textColor="#2A2A2A"
+            android:textSize="12sp" />
+    </LinearLayout>
+</FrameLayout>

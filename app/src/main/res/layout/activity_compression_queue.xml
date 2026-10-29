@@ -16,7 +16,7 @@
             android:layout_height="?attr/actionBarSize"
             android:background="@color/color_primary"
             app:menu="@menu/menu_compression_queue"
-            app:title="@string/cmp_q_title"
+            app:title="@string/cmp_q_title_short"
             app:titleTextAppearance="@style/AppTheme.ActionBar.TitleTextStyle" />
 
     </org.fossify.commons.views.MyAppBarLayout>

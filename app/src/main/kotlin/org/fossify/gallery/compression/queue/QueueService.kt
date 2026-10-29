@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.os.SystemClock
 import android.util.Log
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
@@ -22,6 +23,11 @@ import org.fossify.gallery.compression.ui.CompressionPrefs
 class QueueService : Service(), QueueRunner.Callbacks {
     private var runner: QueueRunner? = null
     private var lastNotified = ""
+    private var etaText: String? = null
+    private var lastEtaAt = 0L
+    private var lastArgs: Args? = null
+
+    private class Args(val item: QueueItem, val index: Int, val total: Int, val percent: Int?)
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -36,6 +42,7 @@ class QueueService : Service(), QueueRunner.Callbacks {
             ACTION_PAUSE -> runner?.pause() ?: stopSelf()
             ACTION_PAUSE_NOW -> runner?.pauseNow() ?: stopSelf()
             ACTION_SKIP -> runner?.skipCurrent() ?: stopSelf()
+            ACTION_CANCEL_ALL -> runner?.cancelAll() ?: stopSelf()
             else -> if (runner == null) stopSelf()
         }
         return START_NOT_STICKY
@@ -64,11 +71,29 @@ class QueueService : Service(), QueueRunner.Callbacks {
         val key = "${item.id}/$index/$total/$percent"
         if (key == lastNotified) return
         lastNotified = key
-        QueueNotifications.update(this, QueueNotifications.progress(this, item, index, total, percent))
+        lastArgs = Args(item, index, total, percent)
+        QueueNotifications.update(this, QueueNotifications.progress(this, item, index, total, percent, etaText))
+        refreshEta()
+    }
+
+    /** Recalcula o tempo restante no máximo a cada 10 s (lê a fila no banco) e republica a notificação se o texto mudou. */
+    private fun refreshEta() {
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastEtaAt < ETA_REFRESH_MS) return
+        lastEtaAt = now
+        QueueRepository.io(this, { dao -> QueueEta.format(this, QueueEta.remaining(this, dao.getAll())) }) { text ->
+            if (text == etaText) return@io
+            etaText = text
+            val args = lastArgs
+            if (runner != null && args != null) {
+                QueueNotifications.update(this, QueueNotifications.progress(this, args.item, args.index, args.total, args.percent, text))
+            }
+        }
     }
 
     override fun onStopped(reason: QueueRunner.StopReason, stats: QueueRunner.Stats) {
         runner = null
+        lastArgs = null
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
         when (reason) {
             QueueRunner.StopReason.FINISHED -> if (stats.done + stats.failed + stats.discarded + stats.canceled > 0) QueueNotifications.summary(this, stats)
@@ -101,6 +126,8 @@ class QueueService : Service(), QueueRunner.Callbacks {
         const val ACTION_PAUSE = "org.fossify.gallery.compression.queue.PAUSE"
         const val ACTION_PAUSE_NOW = "org.fossify.gallery.compression.queue.PAUSE_NOW"
         const val ACTION_SKIP = "org.fossify.gallery.compression.queue.SKIP"
+        const val ACTION_CANCEL_ALL = "org.fossify.gallery.compression.queue.CANCEL_ALL"
+        private const val ETA_REFRESH_MS = 10_000L
 
         /** false se o sistema não deixou iniciar (ex.: limite diário do mediaProcessing já atingido). */
         fun start(context: Context): Boolean = try {

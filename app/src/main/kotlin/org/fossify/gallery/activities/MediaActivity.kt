@@ -56,6 +56,7 @@ import org.fossify.commons.views.MyGridLayoutManager
 import org.fossify.commons.views.MyRecyclerView
 import org.fossify.gallery.R
 import org.fossify.gallery.adapters.MediaAdapter
+import org.fossify.gallery.compression.queue.QueueRefreshHook
 import org.fossify.gallery.asynctasks.GetMediaAsynctask
 import org.fossify.gallery.databases.GalleryDatabase
 import org.fossify.gallery.databinding.ActivityMediaBinding
@@ -149,6 +150,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
     private var mStoredThumbnailSpacing = 0
 
     private val binding by viewBinding(ActivityMediaBinding::inflate)
+    private val queueRefreshHook = QueueRefreshHook { if (!isDestroyed) getMedia() }
 
     companion object {
         var mMedia = ArrayList<ThumbnailItem>()
@@ -200,6 +202,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
 
     override fun onResume() {
         super.onResume()
+        queueRefreshHook.attach()
         updateMenuColors()
         if (mStoredAnimateGifs != config.animateGifs) {
             getMediaAdapter()?.updateAnimateGifs(config.animateGifs)
@@ -270,6 +273,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
 
     override fun onPause() {
         super.onPause()
+        queueRefreshHook.detach()
         mIsGettingMedia = false
         binding.mediaRefreshLayout.isRefreshing = false
         storeStateVariables()

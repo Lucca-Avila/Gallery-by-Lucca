@@ -146,6 +146,7 @@ import org.fossify.gallery.models.Directory
 import org.fossify.gallery.models.Medium
 import org.fossify.gallery.compression.queue.QueueActivity
 import org.fossify.gallery.compression.queue.QueueInterruptedNotice
+import org.fossify.gallery.compression.queue.QueueMenuBadge
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileNotFoundException
@@ -196,6 +197,7 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
     private var mStoredCropThumbnails = true
     private var mStoredScrollHorizontally = true
     private var mStoredTextColor = 0
+    private val queueMenuBadge = QueueMenuBadge(this, { binding.mainMenu.requireToolbar().menu.findItem(R.id.compression_queue) }, { updateMenuColors() })
     private var mStoredPrimaryColor = 0
     private var mStoredStyleString = ""
     private val binding by viewBinding(ActivityMainBinding::inflate)
@@ -292,6 +294,7 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
 
     override fun onResume() {
         super.onResume()
+        queueMenuBadge.attach()
         updateMenuColors()
         config.isThirdPartyIntent = false
         mDateFormat = config.dateFormat
@@ -356,6 +359,7 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
 
     override fun onPause() {
         super.onPause()
+        queueMenuBadge.detach()
         binding.directoriesRefreshLayout.isRefreshing = false
         mIsGettingDirs = false
         storeStateVariables()
@@ -463,6 +467,8 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
         }
 
         binding.mainMenu.requireToolbar().menu.apply {
+            // Câmera escondida no código (o recurso continua no XML, para facilitar merges com o Fossify).
+            findItem(R.id.open_camera).isVisible = false
             findItem(R.id.temporarily_show_hidden).isVisible = !config.shouldShowHidden
             findItem(R.id.stop_showing_hidden).isVisible =
                 (!isRPlus() || isExternalStorageManager()) && config.temporarilyShowHidden

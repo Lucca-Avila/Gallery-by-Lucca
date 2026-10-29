@@ -2,7 +2,9 @@ package org.fossify.gallery.compression.ui
 
 import android.widget.RadioButton
 import android.widget.SeekBar
+import androidx.annotation.OptIn
 import androidx.appcompat.app.AlertDialog
+import androidx.media3.common.util.UnstableApi
 import org.fossify.commons.activities.BaseSimpleActivity
 import org.fossify.commons.extensions.beVisible
 import org.fossify.commons.extensions.formatSize
@@ -19,6 +21,8 @@ import org.fossify.gallery.compression.engine.CompressionOutput
 import org.fossify.gallery.compression.engine.Destination
 import org.fossify.gallery.compression.engine.CompressionPlanner
 import org.fossify.gallery.compression.engine.CompressionPlanner.Preset
+import org.fossify.gallery.compression.queue.QueueEta
+import org.fossify.gallery.compression.queue.QueueRepository
 import org.fossify.gallery.databinding.DialogCompressOptionsBinding
 import org.fossify.gallery.dialogs.PickDirectoryDialog
 import org.fossify.gallery.extensions.config
@@ -38,6 +42,7 @@ data class PlannedVideo(
 )
 
 /** Opções de compressão de um ou vários vídeos; com vários, as mesmas escolhas valem para cada um e a estimativa é somada. */
+@OptIn(UnstableApi::class)
 class CompressOptionsDialog(
     private val activity: BaseSimpleActivity,
     private val paths: List<String>,
@@ -52,6 +57,8 @@ class CompressOptionsDialog(
     private var videos = emptyList<Pair<String, VideoInfo>>()
     private var skipped = emptyList<String>()
     private var sliderTouched = false
+    /** Pixels por segundo para a estimativa de tempo; o padrão vale até a velocidade medida chegar do banco. */
+    private var speed = QueueEta.DEFAULT_SPEED
     private var updating = false
 
     @Volatile
@@ -111,6 +118,10 @@ class CompressOptionsDialog(
     private fun setup(videos: List<Pair<String, VideoInfo>>, skipped: List<String>) {
         this.videos = videos
         this.skipped = skipped
+        QueueRepository.io(activity, { dao -> QueueEta.speed(prefs, dao.getAll()) }) {
+            speed = it
+            refreshEta()
+        }
         val info = videos.first().second
         this.info = info
         binding.compressMessage.visibility = android.view.View.GONE
@@ -287,6 +298,18 @@ class CompressOptionsDialog(
         ) + audioInfoLine(info)
         binding.compressEfficientWarning.visibility =
             if (CompressionPlanner.isAlreadyEfficient(info, requestedForWarning())) android.view.View.VISIBLE else android.view.View.GONE
+        refreshEta()
+    }
+
+    /** Tempo estimado de compressão dos vídeos escolhidos, com a resolução de saída atual. */
+    private fun refreshEta() {
+        if (videos.isEmpty()) return
+        val seconds = videos.sumOf { (_, info) ->
+            val shortSide = selectedShortSide()?.takeIf { it in CompressionPlanner.resolutionChoices(info) }
+            val size = CompressionPlanner.outputSize(info, shortSide)
+            (QueueEta.pixels(size.width, size.height, CompressionPlanner.fpsOf(info), info.durationMs) ?: 0.0) / speed
+        }
+        binding.compressEta.text = activity.getString(R.string.cmp_eta_dialog, QueueEta.formatDuration(activity, Math.round(seconds)))
     }
 
     /** Estimativas somadas: cada vídeo com o próprio alvo (bpp da sua resolução, teto e piso). */
@@ -311,6 +334,7 @@ class CompressOptionsDialog(
         val efficient = videos.count { CompressionPlanner.isAlreadyEfficient(it.second, requestedForWarning(it.second)) }
         binding.compressEfficientWarning.text = activity.getString(R.string.cmp_warn_efficient_multi, efficient, videos.size)
         binding.compressEfficientWarning.visibility = if (efficient > 0) android.view.View.VISIBLE else android.view.View.GONE
+        refreshEta()
     }
 
     private fun audioInfoLine(info: VideoInfo): String {

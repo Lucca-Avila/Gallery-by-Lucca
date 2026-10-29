@@ -9,6 +9,11 @@
         android:title="@string/open_camera"
         app:showAsAction="always" />
     <item
+        android:id="@+id/compression_queue"
+        android:icon="@drawable/ic_playlist_play_vector"
+        android:title="@string/cmp_q_title"
+        app:showAsAction="always" />
+    <item
         android:id="@+id/show_all"
         android:icon="@drawable/ic_files_vector"
         android:title="@string/show_all"
@@ -62,11 +67,6 @@
         android:id="@+id/open_recycle_bin"
         android:showAsAction="never"
         android:title="@string/open_the_recycle_bin"
-        app:showAsAction="never" />
-    <item
-        android:id="@+id/compression_queue"
-        android:showAsAction="never"
-        android:title="@string/cmp_q_title"
         app:showAsAction="never" />
     <item
         android:id="@+id/column_count"

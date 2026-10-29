@@ -41,7 +41,7 @@ object QueueNotifications {
     )
 
     /** [percent] = null: gravando/verificando (barra indeterminada). [item] = null: preparando. */
-    fun progress(context: Context, item: QueueItem?, index: Int, total: Int, percent: Int?): Notification {
+    fun progress(context: Context, item: QueueItem?, index: Int, total: Int, percent: Int?, eta: String? = null): Notification {
         ensureChannels(context)
         val builder = NotificationCompat.Builder(context, CHANNEL_PROGRESS)
             .setSmallIcon(R.drawable.ic_compress_vector)
@@ -60,6 +60,7 @@ object QueueNotifications {
                 else context.getString(R.string.cmp_q_notif_title_saving, index, total)
             )
             .setContentText(item.name)
+            .setSubText(eta)
             .setProgress(100, percent ?: 0, percent == null)
             .addAction(0, context.getString(R.string.cmp_q_pause), serviceAction(context, QueueService.ACTION_PAUSE, 1))
             .addAction(0, context.getString(R.string.cmp_q_skip), serviceAction(context, QueueService.ACTION_SKIP, 2))

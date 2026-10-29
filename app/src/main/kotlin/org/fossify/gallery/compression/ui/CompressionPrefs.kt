@@ -34,7 +34,57 @@ class CompressionPrefs(context: Context) {
         get() = prefs.getInt(KEY_INTERRUPTED, INTERRUPTED_NONE)
         set(value) = prefs.edit().putInt(KEY_INTERRUPTED, value).apply()
 
+    /** Últimas velocidades medidas (pixels por segundo), mais antiga primeiro; sobrevivem ao "Limpar concluídos". */
+    var speedSamples: List<Double>
+        get() = prefs.getString(KEY_SPEEDS, null)?.split(',')?.mapNotNull { it.toDoubleOrNull() } ?: emptyList()
+        set(value) = prefs.edit().putString(KEY_SPEEDS, value.joinToString(",")).apply()
+
+    /** Resumo acumulado da execução da fila (ver [LastRun]). */
+    var lastRun: LastRun?
+        get() = prefs.getLong(KEY_RUN_AT, 0L).takeIf { it > 0 }?.let { at ->
+            LastRun(
+                done = prefs.getInt(KEY_RUN_DONE, 0), failed = prefs.getInt(KEY_RUN_FAILED, 0),
+                discarded = prefs.getInt(KEY_RUN_DISCARDED, 0), canceled = prefs.getInt(KEY_RUN_CANCELED, 0),
+                savedBytes = prefs.getLong(KEY_RUN_SAVED, 0L), updatedAt = at, reason = prefs.getInt(KEY_RUN_REASON, LastRun.REASON_FINISHED),
+            )
+        }
+        set(value) {
+            val editor = prefs.edit()
+            if (value == null) {
+                editor.putLong(KEY_RUN_AT, 0L)
+            } else {
+                editor.putInt(KEY_RUN_DONE, value.done).putInt(KEY_RUN_FAILED, value.failed).putInt(KEY_RUN_DISCARDED, value.discarded)
+                    .putInt(KEY_RUN_CANCELED, value.canceled).putLong(KEY_RUN_SAVED, value.savedBytes)
+                    .putLong(KEY_RUN_AT, value.updatedAt).putInt(KEY_RUN_REASON, value.reason)
+            }
+            editor.apply()
+        }
+
+    /**
+     * Resumo da execução: acumula entre pausas e retomadas e recomeça quando a fila esvaziou ([REASON_FINISHED]).
+     * [updatedAt] é o último evento (término, pausa ou item concluído).
+     */
+    data class LastRun(
+        val done: Int = 0, val failed: Int = 0, val discarded: Int = 0, val canceled: Int = 0,
+        val savedBytes: Long = 0, val updatedAt: Long = System.currentTimeMillis(), val reason: Int = REASON_RUNNING,
+    ) {
+        companion object {
+            const val REASON_RUNNING = 0
+            const val REASON_FINISHED = 1
+            const val REASON_PAUSED = 2
+            const val REASON_TIME_LIMIT = 3
+        }
+    }
+
     companion object {
+        private const val KEY_SPEEDS = "queue_speed_samples"
+        private const val KEY_RUN_AT = "queue_run_at"
+        private const val KEY_RUN_DONE = "queue_run_done"
+        private const val KEY_RUN_FAILED = "queue_run_failed"
+        private const val KEY_RUN_DISCARDED = "queue_run_discarded"
+        private const val KEY_RUN_CANCELED = "queue_run_canceled"
+        private const val KEY_RUN_SAVED = "queue_run_saved"
+        private const val KEY_RUN_REASON = "queue_run_reason"
         const val INTERRUPTED_NONE = 0
         const val INTERRUPTED_KILLED = 1
         const val INTERRUPTED_TIME_LIMIT = 2

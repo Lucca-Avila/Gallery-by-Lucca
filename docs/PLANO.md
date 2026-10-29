@@ -71,11 +71,19 @@
 - [x] Tela mínima: lista com nome, estado e %; em itens concluídos, tamanho antes e depois; motivo quando falhou ou foi descartado; Iniciar/Pausar; `FLAG_KEEP_SCREEN_ON` enquanto a fila roda.
 - [x] Testar: tela ligada, tela apagada, dentro da Pasta Segura (inclusive com o bloqueio automático dela), app morto no meio de um item, vídeo corrompido no lote, "apagar de vez" em lote pequeno, notificação negada.
 
-### 6b: Tela da fila
-- [ ] Visual final: remover, reordenar, cancelar item, cancelar a fila inteira (com confirmação), trocar destino e opções por item, limpar concluídos.
-- [ ] Estimativa de tempo restante: velocidade medida em pixels por segundo dos itens concluídos (média recente, com valor padrão conservador baseado nos meus testes: cerca de 270 milhões de pixels por segundo em 720p, 24 fps), mostrada no topo da tela da fila ('Restante: ≈ X min (N itens)'), na notificação e no diálogo ao adicionar, sempre com '≈'. Dados já gravados por item desde a 6a-2: resolução de saída, fps, duração, início, fim e tempo só de compressão (`compress_ms`).
-- [ ] Resumo da última execução persistido na tela da fila (concluídos, falhas, espaço economizado, horário de término), porque as notificações da Pasta Segura podem estar bloqueadas.
-- [ ] Tela escura de baixo consumo (brilho mínimo, quase preta, só o progresso, texto que muda de posição; um toque volta ao normal).
+### 6b-1: Tela da fila (leitura, estimativa, resumo, tela escura, atualização da galeria)
+- [x] Visual final: topo com "Restante: ≈ X min (N itens)" e resumo da execução; item em andamento em destaque (nome, progresso, estado, "Cancelar este"); aguardando; histórico (mais recentes primeiro). Em cada item: tamanho antes e depois, nome final, motivo de falha/descarte/cancelamento. Toque num item do histórico abre os detalhes (bitrate pedido e "≈ real" calculado, tempo gasto, data preservada, local).
+- [x] Ações: remover item (menu do item; aguardando e histórico, inclusive falhas), cancelar o item atual, cancelar a fila inteira (com confirmação), limpar concluídos (remove concluídos, descartados e cancelados; as falhas ficam até serem removidas pelo menu do item). Remover/editar bloqueados em item aguardando que já foi gravado (fase "publicado").
+- [x] Estimativa de tempo restante: velocidade em pixels por segundo dos itens concluídos/descartados (`compress_ms`, ignorando itens com resolução, fps ou duração 0; média dos últimos 5; padrão 270 milhões de px/s). As últimas 5 velocidades ficam também em `CompressionPrefs`, para "Limpar" não apagar o histórico de velocidade. Mostrada no topo da tela, na notificação e no diálogo ao adicionar, sempre com "≈".
+- [x] Resumo da execução persistido (concluídos, falhas, descartados, cancelados, economia, horário de término). Acumula entre pausas e retomadas; zera quando uma nova execução começa com a fila vazia (a anterior terminou ou foi cancelada/esvaziada).
+- [x] Tela escura de baixo consumo (`QueueDimActivity`): brilho ~1%, fundo preto, texto cinza escuro que muda de posição a cada ~60 s, um toque (ou voltar) volta ao normal; fecha sozinha quando a fila para; o serviço em primeiro plano independe dela.
+- [x] Lista da galeria (`MediaActivity`) atualiza sozinha quando um item é concluído, com intervalo mínimo de 3 s.
+
+### 6b-2: Edição da fila (concorrência e migração)
+- [ ] Reordenar aguardando por arrastar (coluna `position`, migração 2→3, `firstWaiting`/`getPending` por posição; lista congelada durante o arraste).
+- [ ] Trocar destino de item aguardando.
+- [ ] Editar opções (preset, resolução, "depois de comprimir") de item aguardando, reaproveitando o `CompressOptionsDialog` (coluna `preset`). Se virar "apagar de vez", o item vai para um lote novo com confirmação própria.
+- [ ] Edições com SQL condicional (`WHERE state = aguardando`).
 
 ## Etapa 7: Marca de "já comprimido"
 - [ ] Protótipo: gravar marca nos metadados do MP4; verificar se sobrevive a mover/copiar.

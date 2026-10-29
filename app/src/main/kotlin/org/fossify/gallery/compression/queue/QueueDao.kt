@@ -28,6 +28,17 @@ interface QueueDao {
     @Insert
     fun insertAll(items: List<QueueItem>): List<Long>
 
+    /** Remove só o que pode sair sem efeito colateral: aguardando que ainda não gravou nada, ou já encerrado. */
+    @Query(
+        "DELETE FROM queue_items WHERE id = :id AND ((state = ${QueueItem.STATE_WAITING} AND phase = ${QueueItem.PHASE_NONE}) " +
+            "OR state IN (${QueueItem.STATE_DONE}, ${QueueItem.STATE_FAILED}, ${QueueItem.STATE_DISCARDED}, ${QueueItem.STATE_CANCELED}))"
+    )
+    fun deleteRemovable(id: Long): Int
+
+    /** "Limpar concluídos": as falhas ficam até serem removidas à mão. */
+    @Query("DELETE FROM queue_items WHERE state IN (${QueueItem.STATE_DONE}, ${QueueItem.STATE_DISCARDED}, ${QueueItem.STATE_CANCELED})")
+    fun deleteFinished(): Int
+
     @Update
     fun update(item: QueueItem)
 

@@ -121,6 +121,13 @@
                 android:textSize="13sp" />
 
             <org.fossify.commons.views.MyTextView
+                android:id="@+id/compress_eta"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/small_margin"
+                android:textSize="13sp" />
+
+            <org.fossify.commons.views.MyTextView
                 android:id="@+id/compress_efficient_warning"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

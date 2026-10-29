@@ -27,6 +27,7 @@ object QueueRepository {
     private val main = Handler(Looper.getMainLooper())
     private val listeners = mutableListOf<() -> Unit>()
     private val consentedBatches = mutableSetOf<Long>()
+    private val completedListeners = mutableListOf<() -> Unit>()
 
     @Volatile
     private var recovered = false
@@ -54,6 +55,70 @@ object QueueRepository {
 
     fun removeListener(listener: () -> Unit) {
         listeners.remove(listener)
+    }
+
+    /** Chamado (na thread principal) quando um item é concluído: o resultado já está no destino e o original já foi tratado. */
+    fun addCompletedListener(listener: () -> Unit) {
+        completedListeners.add(listener)
+    }
+
+    fun removeCompletedListener(listener: () -> Unit) {
+        completedListeners.remove(listener)
+    }
+
+    /** Pode ser chamado de qualquer thread. */
+    fun notifyCompleted() {
+        main.post { completedListeners.toList().forEach { it() } }
+    }
+
+    /** Remove um item (aguardando que não gravou nada, ou já encerrado). [then] recebe se algo foi removido. */
+    fun remove(context: Context, id: Long, then: (Boolean) -> Unit = {}) {
+        io(context, { dao ->
+            (dao.deleteRemovable(id) > 0).also { closeRunIfEmpty(context, dao) }
+        }) {
+            notifyChanged()
+            then(it)
+        }
+    }
+
+    /** "Limpar concluídos": concluídos, descartados e cancelados. As falhas ficam. */
+    fun clearFinished(context: Context) {
+        io(context, { dao -> dao.deleteFinished() }) { notifyChanged() }
+    }
+
+    /**
+     * Marca como cancelados todos os itens aguardando (o item em andamento não é tocado). Sem a fila rodando, o resumo da execução
+     * é fechado aqui; rodando, quem conta é o [QueueRunner]. [then] recebe quantos foram cancelados.
+     */
+    fun cancelWaiting(context: Context, then: (Int) -> Unit = {}) {
+        io(context, { dao ->
+            val now = System.currentTimeMillis()
+            val waiting = dao.getPending().filter { it.state == QueueItem.STATE_WAITING }
+            waiting.forEach { item ->
+                val message = context.getString(
+                    if (item.phase == QueueItem.PHASE_PUBLISHED) R.string.cmp_q_canceled_published else R.string.cmp_q_canceled_queue
+                )
+                dao.update(item.copy(state = QueueItem.STATE_CANCELED, phase = QueueItem.PHASE_NONE, progress = 0, message = message, finishedAt = now))
+            }
+            if (!QueueRunner.running && waiting.isNotEmpty()) {
+                val prefs = CompressionPrefs(context)
+                val run = prefs.lastRun ?: CompressionPrefs.LastRun()
+                prefs.lastRun = run.copy(canceled = run.canceled + waiting.size, updatedAt = now, reason = CompressionPrefs.LastRun.REASON_FINISHED)
+            }
+            waiting.size
+        }) {
+            notifyChanged()
+            then(it)
+        }
+    }
+
+    /** Fila esvaziada à mão enquanto parada: a próxima execução começa um resumo novo. */
+    private fun closeRunIfEmpty(context: Context, dao: QueueDao) {
+        if (QueueRunner.running || dao.getPending().isNotEmpty()) return
+        val prefs = CompressionPrefs(context)
+        prefs.lastRun?.takeIf { it.reason != CompressionPrefs.LastRun.REASON_FINISHED }?.let {
+            prefs.lastRun = it.copy(reason = CompressionPrefs.LastRun.REASON_FINISHED)
+        }
     }
 
     /** Pode ser chamado de qualquer thread. */

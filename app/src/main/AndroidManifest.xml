@@ -340,6 +340,13 @@
             android:exported="false"
             android:label="@string/cmp_q_title" />
 
+        <activity
+            android:name=".compression.queue.QueueDimActivity"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:exported="false"
+            android:label="@string/cmp_q_dim"
+            android:theme="@style/Theme.AppCompat.NoActionBar" />
+
         <service
             android:name=".compression.queue.QueueService"
             android:exported="false"

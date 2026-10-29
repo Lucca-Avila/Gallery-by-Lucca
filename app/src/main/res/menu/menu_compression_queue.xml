@@ -10,7 +10,16 @@
         android:title="@string/cmp_q_pause"
         app:showAsAction="always" />
     <item
+        android:id="@+id/queue_dim"
+        android:icon="@drawable/ic_dark_mode_vector"
+        android:title="@string/cmp_q_dim"
+        app:showAsAction="always" />
+    <item
         android:id="@+id/queue_pause_now"
         android:title="@string/cmp_q_pause_now"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/queue_cancel_all"
+        android:title="@string/cmp_q_cancel_all"
         app:showAsAction="never" />
 </menu>
