@@ -43,18 +43,21 @@
 - [ ] Resolução padrão automática: >1080p -> 1080p; <=1080p mantém (hoje o padrão é manter a original e o usuário escolhe).
 - [ ] Escolha da trilha de áudio (hoje só a trilha padrão é mantida).
 - [ ] Avisar sobre legendas descartadas.
-- [ ] Descartar o resultado se ficar maior que o original; avisar.
+- [x] Descartar o resultado se ficar com 95% ou mais do tamanho do original (economia < 5%); nada gravado, aviso com os dois tamanhos. Constante `ResultVerifier.DISCARD_RATIO`.
 - [ ] Calibração final dos bpp dos presets (comparando qualidade no celular).
 
-## Etapa 5: Preservar data e apagar original
-- [ ] Copiar data de gravação/modificação do original para o comprimido (MediaStore + metadados do MP4).
-- [ ] Oferecer apagar o original (confirmação do sistema).
-- [ ] Testar que a ordem na galeria não muda.
+## Etapa 5: Preservar data e apagar original (concluída)
+- [x] Copiar a data do original para o comprimido: `File.setLastModified` + MediaStore (`DATE_MODIFIED`, `DATE_TAKEN`) + banco de datas do Fossify, se o original tinha entrada lá (`DatePreserver`).
+- Fora desta etapa: data de criação nos metadados do MP4 (o Transformer não oferece isso de forma direta; seria reescrever o `mvhd`). Só retomar se a ordem na galeria falhar.
+- [x] Opção "Depois de comprimir": manter (padrão) / lixeira do app / apagar de vez. Só executa após verificar o resultado (arquivo, trilha de vídeo, áudio se havia, duração ±1 s, resolução esperada). Lixeira desabilitada com explicação se a do Fossify estiver desligada. "Apagar de vez" nunca é lembrado e pede confirmação do app (nome e tamanho) a cada uso.
+- [x] Testar que a ordem na galeria não muda (testado no aparelho, na Pasta Segura).
+- [x] Verificação de data tolerante (±2 s, releitura após o scan) que informa o campo divergente; botão "Comprimir" na barra de seleção (à esquerda da lixeira, 1 vídeo); lista atualizada automaticamente ao fechar o resultado.
 
 ## Etapa 6: Fila de compressão
 - [ ] Serviço em primeiro plano + notificação de progresso.
 - [ ] Seleção múltipla na galeria -> "Comprimir na fila".
 - [ ] Tela da fila (ver, remover, reordenar, cancelar, trocar destino de um item).
+- [ ] Confirmação de apagar originais única por lote (não uma por vídeo).
 - [ ] Pular automaticamente, ou perguntar antes, vídeos já eficientes (aviso de vídeo já eficiente) durante o processamento da fila.
 - [ ] Testar com tela apagada e com vários vídeos.
 

@@ -10,6 +10,12 @@
         android:title="@string/confirm_selection"
         app:showAsAction="always" />
     <item
+        android:id="@+id/cab_compress"
+        android:icon="@drawable/ic_compress_vector"
+        android:showAsAction="always"
+        android:title="@string/cmp_menu"
+        app:showAsAction="always" />
+    <item
         android:id="@+id/cab_delete"
         android:icon="@drawable/ic_delete_vector"
         android:showAsAction="always"
@@ -21,11 +27,6 @@
         android:showAsAction="always"
         android:title="@string/share"
         app:showAsAction="always" />
-    <item
-        android:id="@+id/cab_compress"
-        android:showAsAction="never"
-        android:title="@string/cmp_menu"
-        app:showAsAction="never" />
     <item
         android:id="@+id/cab_compress_info"
         android:showAsAction="never"

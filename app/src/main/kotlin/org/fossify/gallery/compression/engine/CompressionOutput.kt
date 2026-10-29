@@ -2,8 +2,8 @@ package org.fossify.gallery.compression.engine
 
 import android.content.ContentValues
 import android.content.Context
-import android.media.MediaScannerConnection
 import android.net.Uri
+import android.os.Environment
 import android.provider.MediaStore
 import java.io.File
 
@@ -16,10 +16,10 @@ sealed class Destination {
     data class Direct(val folderPath: String) : Destination()
 }
 
-data class PublishedFile(val name: String, val location: String, val usedFallback: Boolean)
+data class PublishedFile(val name: String, val location: String, val usedFallback: Boolean, val file: File)
 
 /**
- * Copia o temporário para o destino sem nunca sobrescrever. Gravação direta (acesso a todos os arquivos)
+ * Copia o temporário para o destino sem nunca sobrescrever. Gravação direta (acesso a todos os arquivos, sem scan: quem chama avisa o MediaStore)
  * ou MediaStore; se a gravação direta falhar, cai em Movies/COMPRIMIDOS via MediaStore (IS_PENDING).
  * Roda em thread de fundo.
  */
@@ -39,12 +39,14 @@ object CompressionOutput {
             is Destination.Direct -> publishDirect(context, temp, destination.folderPath, base, q)?.let { return it }
             is Destination.MediaFolder ->
                 publishToMediaStore(context, temp, destination.relativePath, base, q)
-                    ?.let { return PublishedFile(it, destination.relativePath, false) }
+                    ?.let { return PublishedFile(it, destination.relativePath, false, mediaStoreFile(destination.relativePath, it)) }
         }
         val name = publishToMediaStore(context, temp, FALLBACK_RELATIVE_PATH, base, q)
             ?: throw CompressionException("Não foi possível gravar em $FALLBACK_RELATIVE_PATH")
-        return PublishedFile(name, FALLBACK_RELATIVE_PATH, true)
+        return PublishedFile(name, FALLBACK_RELATIVE_PATH, true, mediaStoreFile(FALLBACK_RELATIVE_PATH, name))
     }
+
+    private fun mediaStoreFile(relative: String, name: String) = File(Environment.getExternalStorageDirectory(), relative + name)
 
     private val STACKED_SUFFIX = Regex("_comp(_q\\d+)?(_\\d+)?$")
 
@@ -114,7 +116,7 @@ object CompressionOutput {
             runCatching { target.delete() }
             return null
         }
-        MediaScannerConnection.scanFile(context, arrayOf(target.absolutePath), arrayOf("video/mp4"), null)
-        return PublishedFile(target.name, folder, false)
+        // O scan é feito por DatePreserver.apply, depois de acertar a data.
+        return PublishedFile(target.name, folder, false, target)
     }
 }

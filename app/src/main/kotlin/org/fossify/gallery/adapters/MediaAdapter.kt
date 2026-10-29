@@ -237,7 +237,7 @@ class MediaAdapter(
             R.id.cab_fix_date_taken -> fixDateTaken()
             R.id.cab_set_as -> setAs()
             R.id.cab_resize -> resize()
-            R.id.cab_compress -> getFirstSelectedItemPath()?.let { CompressFlow(activity, it).start() }
+            R.id.cab_compress -> getFirstSelectedItemPath()?.let { CompressFlow(activity, it) { listener?.refreshItems() }.start() }
             R.id.cab_compress_info -> getFirstSelectedItemPath()?.let { VideoInfoDialog(activity, it) }
             R.id.cab_delete -> checkDeleteConfirmation()
         }

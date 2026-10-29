@@ -160,6 +160,44 @@
                     android:layout_height="wrap_content"
                     android:text="@string/cmp_dest_other" />
             </RadioGroup>
+
+            <org.fossify.commons.views.MyTextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/activity_margin"
+                android:text="@string/cmp_after"
+                android:textStyle="bold" />
+
+            <RadioGroup
+                android:id="@+id/compress_after_group"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <org.fossify.commons.views.MyCompatRadioButton
+                    android:id="@+id/compress_after_keep"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/cmp_after_keep" />
+
+                <org.fossify.commons.views.MyCompatRadioButton
+                    android:id="@+id/compress_after_trash"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/cmp_after_trash" />
+
+                <org.fossify.commons.views.MyCompatRadioButton
+                    android:id="@+id/compress_after_delete"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/cmp_after_delete" />
+            </RadioGroup>
+
+            <org.fossify.commons.views.MyTextView
+                android:id="@+id/compress_after_note"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="12sp"
+                android:visibility="gone" />
         </LinearLayout>
     </LinearLayout>
 </ScrollView>

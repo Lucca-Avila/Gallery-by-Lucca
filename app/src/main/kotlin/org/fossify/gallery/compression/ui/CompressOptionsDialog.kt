@@ -4,6 +4,7 @@ import android.widget.RadioButton
 import android.widget.SeekBar
 import androidx.appcompat.app.AlertDialog
 import org.fossify.commons.activities.BaseSimpleActivity
+import org.fossify.commons.dialogs.ConfirmationDialog
 import org.fossify.commons.extensions.beVisible
 import org.fossify.commons.extensions.formatSize
 import org.fossify.commons.extensions.getAlertDialogBuilder
@@ -21,6 +22,7 @@ import org.fossify.gallery.compression.engine.CompressionPlanner
 import org.fossify.gallery.compression.engine.CompressionPlanner.Preset
 import org.fossify.gallery.databinding.DialogCompressOptionsBinding
 import org.fossify.gallery.dialogs.PickDirectoryDialog
+import org.fossify.gallery.extensions.config
 import java.io.File
 import java.util.Locale
 import kotlin.math.roundToInt
@@ -28,7 +30,7 @@ import kotlin.math.roundToInt
 class CompressOptionsDialog(
     private val activity: BaseSimpleActivity,
     private val path: String,
-    private val onConfirm: (info: VideoInfo, options: CompressionOptions, destination: Destination) -> Unit,
+    private val onConfirm: (info: VideoInfo, options: CompressionOptions, destination: Destination, after: Int) -> Unit,
 ) {
     private val binding = DialogCompressOptionsBinding.inflate(activity.layoutInflater)
     private val prefs = CompressionPrefs(activity)
@@ -98,6 +100,7 @@ class CompressOptionsDialog(
         setupResolution(info)
         setupPresets()
         setupDestination()
+        setupAfter()
         refreshTarget()
         dialog?.getButton(AlertDialog.BUTTON_POSITIVE)?.isEnabled = true
     }
@@ -247,6 +250,20 @@ class CompressOptionsDialog(
         binding.compressDestOther.setOnClickListener { pickFolder() }
     }
 
+    private fun setupAfter() {
+        val trashAvailable = activity.config.useRecycleBin
+        binding.compressAfterTrash.isEnabled = trashAvailable
+        binding.compressAfterNote.beVisible()
+        binding.compressAfterNote.text = activity.getString(R.string.cmp_after_note) +
+            if (trashAvailable) "" else "\n" + activity.getString(R.string.cmp_after_trash_off)
+        // "Apagar de vez" nunca é o padrão: só manter ou lixeira são lembrados.
+        if (prefs.afterMode == CompressionPrefs.AFTER_TRASH && trashAvailable) {
+            binding.compressAfterTrash.isChecked = true
+        } else {
+            binding.compressAfterKeep.isChecked = true
+        }
+    }
+
     private fun updateCustomLabel() {
         val custom = prefs.customPath
         binding.compressDestOther.text = if (custom != null) {
@@ -276,6 +293,27 @@ class CompressOptionsDialog(
 
     private fun confirm() {
         val info = info ?: return
+        val after = when (binding.compressAfterGroup.checkedRadioButtonId) {
+            R.id.compress_after_trash -> CompressionPrefs.AFTER_TRASH
+            R.id.compress_after_delete -> CompressionPrefs.AFTER_DELETE
+            else -> CompressionPrefs.AFTER_KEEP
+        }
+        if (after != CompressionPrefs.AFTER_DELETE) {
+            prefs.afterMode = after
+            finish(info, after)
+            return
+        }
+        // Apagar de vez: confirmação do próprio app a cada uso (nome e tamanho do original).
+        ConfirmationDialog(
+            activity,
+            activity.getString(R.string.cmp_confirm_delete_title) + "\n\n" +
+                activity.getString(R.string.cmp_confirm_delete_msg, File(path).name, info.fileSize.formatSize()),
+            positive = R.string.cmp_confirm_delete_ok,
+            negative = org.fossify.commons.R.string.cancel,
+        ) { finish(info, after) }
+    }
+
+    private fun finish(info: VideoInfo, after: Int) {
         val destination = when (binding.compressDestGroup.checkedRadioButtonId) {
             R.id.compress_dest_comprimidos -> {
                 prefs.destMode = CompressionPrefs.DEST_COMPRIMIDOS
@@ -305,7 +343,7 @@ class CompressOptionsDialog(
             audioDownmixToStereo = audioPlan.downmixToStereo,
         )
         dialog?.dismiss()
-        onConfirm(info, options, destination)
+        onConfirm(info, options, destination, after)
     }
 
     private fun formatBitrate(bps: Long): String =
