@@ -102,6 +102,24 @@ object QueueRepository {
         }
     }
 
+    /**
+     * Grava as opções editadas de um aguardando (só se ainda aguarda sem ter gravado nada). [edited] traz as colunas novas;
+     * id, estado e fase vêm do banco. [then] recebe se o item foi alterado.
+     */
+    fun edit(context: Context, edited: QueueItem, then: (Boolean) -> Unit) {
+        io(context, { dao ->
+            with(edited) {
+                dao.updateWaitingOptions(
+                    id, batchId, estimatedSize, outputWidth, outputHeight, videoBitrate, useHevc, audioReencodeBitrate, audioDownmixToStereo,
+                    qualityTag, destKind, destPath, after, videoWidth, videoHeight, preset, customPct, shortSide,
+                ) > 0
+            }
+        }) {
+            notifyChanged()
+            then(it)
+        }
+    }
+
     /** "Limpar concluídos": concluídos, descartados e cancelados. As falhas ficam. */
     fun clearFinished(context: Context) {
         io(context, { dao -> dao.deleteFinished() }) { notifyChanged() }

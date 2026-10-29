@@ -514,6 +514,9 @@
     <string name="cmp_q_clear">Limpar concluídos</string>
     <string name="cmp_q_remove">Remover</string>
     <string name="cmp_q_drag">Arrastar para mudar a ordem</string>
+    <string name="cmp_q_edit">Editar</string>
+    <string name="cmp_q_edit_started">O item já começou; alterações não aplicadas</string>
+    <string name="cmp_q_edit_started_open">O item já começou; não dá mais para editar</string>
     <string name="cmp_q_reorder_skipped">Um item já começou; a ordem dos demais foi salva</string>
     <string name="cmp_q_dim">Tela escura</string>
     <string name="cmp_q_dim_hint">Toque para voltar</string>

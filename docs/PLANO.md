@@ -108,10 +108,12 @@ Fora do escopo: lembrar a regra por pasta (a última regra global da 6c-2 cobre 
 - [x] Reordenar aguardando por arrastar (transação com `UPDATE position … WHERE id = ? AND state = aguardando`); item em andamento fixo no topo; lista congelada durante o arraste, recarregada ao soltar.
 - [x] Testar com a fila rodando: o próximo segue a nova ordem e a ordem sobrevive ao app ser morto.
 
-#### 6b-2b: Edição da fila
-- [ ] "Editar" no item (diálogo) e "Editar aguardando" (tela de lote em modo EDITAR); trocar destino. Item antigo (`preset = -1`) abre como Personalizado, com % = bitrate ÷ referência e resolução deduzida de `out_width`.
-- [ ] Edições com SQL condicional (`WHERE id = ? AND state = aguardando AND phase = nenhuma`); se nada mudar, "O item já começou; alterações não aplicadas". Estado checado também ao abrir o editor. Atualiza estimativa e dados do ETA.
-- [ ] Virar "apagar de vez" (ou consentimento perdido): confirmação nova e `batch_id` novo com `grantDeleteConsent`; sair de "apagar de vez" só atualiza o campo.
+#### 6b-2b: Edição da fila (concluída)
+- [x] "Editar" no item (diálogo em modo regra, `QueueEdit`); trocar destino. Item antigo (`preset = -1`): preset deduzido pelo bitrate (±1% de um preset na resolução; senão Personalizado com % = bitrate ÷ referência) e resolução deduzida de `out_width`/`out_height`.
+- [x] Edições com SQL condicional (`QueueDao.updateWaitingOptions`, `WHERE id = ? AND state = aguardando AND phase = nenhuma`); se nada mudar, "O item já começou; alterações não aplicadas". Estado checado também ao abrir o editor. Atualiza estimativa e dados do ETA.
+- [x] Virar "apagar de vez" (ou consentimento perdido): confirmação nova e `batch_id` novo com `grantDeleteConsent`; sair de "apagar de vez" só atualiza o campo.
+- [x] Testado no aparelho, inclusive a corrida (editor aberto, item começa, confirmar).
+- Descartado por decisão: "Editar aguardando" (vários itens de uma vez, tela de lote em modo EDITAR); o "Editar" de um item e a tela de lote bastam. Pode voltar se fizer falta (reaproveitaria `QueueEdit.ruleOf` e a gravação condicional).
 
 ## Etapa 7: Marca de "já comprimido"
 - [ ] Protótipo: gravar marca nos metadados do MP4; verificar se sobrevive a mover/copiar.

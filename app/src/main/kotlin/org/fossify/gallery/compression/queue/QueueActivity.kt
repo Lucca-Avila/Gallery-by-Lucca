@@ -328,9 +328,13 @@ class QueueActivity : SimpleActivity() {
 
     private fun showItemMenu(anchor: View, item: QueueItem) {
         PopupMenu(this, anchor).apply {
-            menu.add(R.string.cmp_q_remove)
+            if (QueueEdit.isEditable(item)) menu.add(0, MENU_EDIT, 0, R.string.cmp_q_edit)
+            menu.add(0, MENU_REMOVE, 1, R.string.cmp_q_remove)
             setOnMenuItemClickListener {
-                QueueRepository.remove(this@QueueActivity, item.id)
+                when (it.itemId) {
+                    MENU_EDIT -> QueueEdit.open(this@QueueActivity, item.id)
+                    else -> QueueRepository.remove(this@QueueActivity, item.id)
+                }
                 true
             }
             show()
@@ -456,6 +460,8 @@ class QueueActivity : SimpleActivity() {
         const val TYPE_RUNNING = 1
         const val TYPE_SECTION = 2
         const val TYPE_ENTRY = 3
+        const val MENU_EDIT = 1
+        const val MENU_REMOVE = 2
         val FAILED_COLOR = Color.parseColor("#E53935")
     }
 }

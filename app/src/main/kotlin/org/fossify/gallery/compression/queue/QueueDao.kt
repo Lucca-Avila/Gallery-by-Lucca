@@ -51,6 +51,20 @@ interface QueueDao {
     )
     fun updateWaitingPosition(id: Long, position: Long): Int
 
+    /** Edição de um aguardando que ainda não gravou nada; devolve 0 se o item já começou (e nada muda). */
+    @Query(
+        "UPDATE queue_items SET batch_id = :batchId, estimated_size = :estimatedSize, out_width = :outputWidth, out_height = :outputHeight, " +
+            "video_bitrate = :videoBitrate, use_hevc = :useHevc, audio_bitrate = :audioBitrate, audio_downmix = :audioDownmix, " +
+            "quality_tag = :qualityTag, dest_kind = :destKind, dest_path = :destPath, `after` = :after, video_width = :videoWidth, " +
+            "video_height = :videoHeight, preset = :preset, custom_pct = :customPct, short_side = :shortSide " +
+            "WHERE id = :id AND state = ${QueueItem.STATE_WAITING} AND phase = ${QueueItem.PHASE_NONE}"
+    )
+    fun updateWaitingOptions(
+        id: Long, batchId: Long, estimatedSize: Long, outputWidth: Int?, outputHeight: Int?, videoBitrate: Int, useHevc: Boolean,
+        audioBitrate: Int?, audioDownmix: Boolean, qualityTag: Int, destKind: Int, destPath: String, after: Int,
+        videoWidth: Int, videoHeight: Int, preset: Int, customPct: Int?, shortSide: Int?,
+    ): Int
+
     @Query("UPDATE queue_items SET progress = :progress WHERE id = :id")
     fun updateProgress(id: Long, progress: Int)
 }
