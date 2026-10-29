@@ -105,8 +105,8 @@ Fora do escopo: lembrar a regra por pasta (a última regra global da 6c-2 cobre 
 - [x] Lista de vídeos passada em memória (não no Intent); girar a tela sem perder nada; testar na Pasta Segura.
 
 #### 6b-2a: Ordem da fila
-- [ ] Reordenar aguardando por arrastar (transação com `UPDATE position … WHERE id = ? AND state = aguardando`); item em andamento fixo no topo; lista congelada durante o arraste, recarregada ao soltar.
-- [ ] Testar com a fila rodando: o próximo segue a nova ordem e a ordem sobrevive ao app ser morto.
+- [x] Reordenar aguardando por arrastar (transação com `UPDATE position … WHERE id = ? AND state = aguardando`); item em andamento fixo no topo; lista congelada durante o arraste, recarregada ao soltar.
+- [x] Testar com a fila rodando: o próximo segue a nova ordem e a ordem sobrevive ao app ser morto.
 
 #### 6b-2b: Edição da fila
 - [ ] "Editar" no item (diálogo) e "Editar aguardando" (tela de lote em modo EDITAR); trocar destino. Item antigo (`preset = -1`) abre como Personalizado, com % = bitrate ÷ referência e resolução deduzida de `out_width`.

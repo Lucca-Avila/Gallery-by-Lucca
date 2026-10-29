@@ -45,6 +45,12 @@ interface QueueDao {
     @Update
     fun update(item: QueueItem)
 
+    /** Só muda a posição de quem ainda aguarda sem ter gravado nada; devolve 0 se o item já começou. */
+    @Query(
+        "UPDATE queue_items SET position = :position WHERE id = :id AND state = ${QueueItem.STATE_WAITING} AND phase = ${QueueItem.PHASE_NONE}"
+    )
+    fun updateWaitingPosition(id: Long, position: Long): Int
+
     @Query("UPDATE queue_items SET progress = :progress WHERE id = :id")
     fun updateProgress(id: Long, progress: Int)
 }

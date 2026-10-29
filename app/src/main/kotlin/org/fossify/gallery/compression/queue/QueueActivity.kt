@@ -6,19 +6,22 @@ import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.text.format.DateUtils
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.PopupMenu
 import androidx.media3.common.util.UnstableApi
 import androidx.recyclerview.widget.DiffUtil
-import androidx.recyclerview.widget.ListAdapter
+import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
+import org.fossify.commons.extensions.applyColorFilter
 import org.fossify.commons.extensions.beVisibleIf
 import org.fossify.commons.extensions.formatSize
 import org.fossify.commons.extensions.getAlertDialogBuilder
 import org.fossify.commons.extensions.getProperPrimaryColor
 import org.fossify.commons.extensions.getProperTextColor
+import org.fossify.commons.extensions.toast
 import org.fossify.commons.extensions.updateTextColors
 import org.fossify.commons.extensions.viewBinding
 import org.fossify.commons.helpers.NavigationIcon
@@ -43,6 +46,11 @@ class QueueActivity : SimpleActivity() {
     private val adapter = Adapter()
     private var items = emptyList<QueueItem>()
     private val listener: () -> Unit = { reload() }
+    private val touchHelper = ItemTouchHelper(DragCallback())
+
+    /** Durante o arraste a lista não recarrega (o progresso da fila bagunçaria o gesto); recarrega ao soltar. */
+    private var dragging = false
+    private var orderBeforeDrag = emptyList<Long>()
 
     /** Linhas da lista; cada uma só muda quando o seu conteúdo muda (DiffUtil), então o progresso atualiza só o cartão do item atual. */
     private sealed interface Row {
@@ -69,6 +77,7 @@ class QueueActivity : SimpleActivity() {
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
         binding.queueList.adapter = adapter
+        touchHelper.attachToRecyclerView(binding.queueList)
         binding.queueToolbar.setOnMenuItemClickListener { menuItem ->
             when (menuItem.itemId) {
                 R.id.queue_start -> QueueStarter.start(this)
@@ -100,11 +109,63 @@ class QueueActivity : SimpleActivity() {
     }
 
     private fun reload() {
+        if (dragging) return
         QueueRepository.io(this, { dao -> dao.getAll() }) { all ->
-            if (isDestroyed) return@io
+            if (isDestroyed || dragging) return@io
             items = all
-            adapter.submitList(buildRows())
+            adapter.submit(buildRows())
             refreshState()
+        }
+    }
+
+    /** Aguardando que ainda não gravou nada: o único que pode mudar de lugar. */
+    private fun isMovable(item: QueueItem) = item.state == QueueItem.STATE_WAITING && item.phase == QueueItem.PHASE_NONE
+
+    private fun movableOrder() = adapter.rows.mapNotNull { (it as? EntryRow)?.item?.takeIf(::isMovable)?.id }
+
+    private fun onDragEnded() {
+        dragging = false
+        val order = movableOrder()
+        if (order == orderBeforeDrag) {
+            reload()
+            return
+        }
+        QueueRepository.reorder(this, order) { skipped ->
+            if (skipped > 0 && !isDestroyed) toast(R.string.cmp_q_reorder_skipped)
+        }
+    }
+
+    private inner class DragCallback : ItemTouchHelper.Callback() {
+        private fun movableAt(holder: RecyclerView.ViewHolder) =
+            (adapter.rows.getOrNull(holder.bindingAdapterPosition) as? EntryRow)?.item?.let(::isMovable) == true
+
+        override fun isLongPressDragEnabled() = false
+
+        override fun isItemViewSwipeEnabled() = false
+
+        override fun getMovementFlags(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) =
+            if (movableAt(viewHolder)) makeMovementFlags(ItemTouchHelper.UP or ItemTouchHelper.DOWN, 0) else 0
+
+        override fun canDropOver(recyclerView: RecyclerView, current: RecyclerView.ViewHolder, target: RecyclerView.ViewHolder) = movableAt(target)
+
+        override fun onMove(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder, target: RecyclerView.ViewHolder): Boolean {
+            adapter.move(viewHolder.bindingAdapterPosition, target.bindingAdapterPosition)
+            return true
+        }
+
+        override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {}
+
+        override fun onSelectedChanged(viewHolder: RecyclerView.ViewHolder?, actionState: Int) {
+            super.onSelectedChanged(viewHolder, actionState)
+            if (actionState == ItemTouchHelper.ACTION_STATE_DRAG) {
+                dragging = true
+                orderBeforeDrag = movableOrder()
+            }
+        }
+
+        override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
+            super.clearView(recyclerView, viewHolder)
+            if (dragging) onDragEnded()
         }
     }
 
@@ -278,10 +339,32 @@ class QueueActivity : SimpleActivity() {
 
     private fun canRemove(item: QueueItem) = isFinished(item) || (item.state == QueueItem.STATE_WAITING && item.phase == QueueItem.PHASE_NONE)
 
-    private inner class Adapter : ListAdapter<Row, RecyclerView.ViewHolder>(object : DiffUtil.ItemCallback<Row>() {
-        override fun areItemsTheSame(oldItem: Row, newItem: Row) = oldItem.key == newItem.key
-        override fun areContentsTheSame(oldItem: Row, newItem: Row) = oldItem == newItem
-    }) {
+    /** Diferenças calculadas na hora (lista pequena), para o arraste mover as linhas de forma síncrona. */
+    private inner class Adapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+        var rows = emptyList<Row>()
+            private set
+
+        fun submit(newRows: List<Row>) {
+            val old = rows
+            val diff = DiffUtil.calculateDiff(object : DiffUtil.Callback() {
+                override fun getOldListSize() = old.size
+                override fun getNewListSize() = newRows.size
+                override fun areItemsTheSame(oldPos: Int, newPos: Int) = old[oldPos].key == newRows[newPos].key
+                override fun areContentsTheSame(oldPos: Int, newPos: Int) = old[oldPos] == newRows[newPos]
+            })
+            rows = newRows
+            diff.dispatchUpdatesTo(this)
+        }
+
+        fun move(from: Int, to: Int) {
+            rows = rows.toMutableList().apply { add(to, removeAt(from)) }
+            notifyItemMoved(from, to)
+        }
+
+        private fun getItem(position: Int) = rows[position]
+
+        override fun getItemCount() = rows.size
+
         override fun getItemViewType(position: Int) = when (getItem(position)) {
             is HeaderRow -> TYPE_HEADER
             is RunningRow -> TYPE_RUNNING
@@ -345,6 +428,12 @@ class QueueActivity : SimpleActivity() {
 
                 is EntryRow -> ItemCompressionQueueBinding.bind(holder.itemView).apply {
                     val item = row.item
+                    queueItemDrag.beVisibleIf(isMovable(item))
+                    queueItemDrag.applyColorFilter(textColor)
+                    queueItemDrag.setOnTouchListener { _, event ->
+                        if (event.actionMasked == MotionEvent.ACTION_DOWN) touchHelper.startDrag(holder)
+                        false
+                    }
                     queueItemName.text = item.name
                     queueItemName.setTextColor(textColor)
                     queueItemState.text = row.state

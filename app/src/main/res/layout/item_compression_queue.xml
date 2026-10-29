@@ -11,6 +11,17 @@
     android:paddingTop="@dimen/medium_margin"
     android:paddingBottom="@dimen/medium_margin">
 
+    <ImageView
+        android:id="@+id/queue_item_drag"
+        android:layout_width="40dp"
+        android:layout_height="48dp"
+        android:layout_marginStart="-12dp"
+        android:contentDescription="@string/cmp_q_drag"
+        android:paddingStart="4dp"
+        android:paddingEnd="12dp"
+        android:src="@drawable/ic_drag_handle_vector"
+        android:visibility="gone" />
+
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"

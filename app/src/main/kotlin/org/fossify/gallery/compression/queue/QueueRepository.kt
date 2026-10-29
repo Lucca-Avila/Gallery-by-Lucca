@@ -81,6 +81,27 @@ object QueueRepository {
         }
     }
 
+    /**
+     * Nova ordem dos aguardando móveis ([ids], na ordem desejada), numa transação. Os itens reaproveitam as posições que já
+     * ocupavam, então quem não se move (publicados, adicionados durante o arraste) fica onde estava. Quem já começou é pulado;
+     * [then] recebe quantos foram pulados.
+     */
+    fun reorder(context: Context, ids: List<Long>, then: (Int) -> Unit = {}) {
+        io(context, { dao ->
+            QueueDatabase.getInstance(context).runInTransaction<Int> {
+                val movable = dao.getPending().filter { it.state == QueueItem.STATE_WAITING && it.phase == QueueItem.PHASE_NONE }.associateBy { it.id }
+                val still = ids.filter { it in movable }
+                val slots = still.map { movable.getValue(it).position }.sorted().toMutableList()
+                for (i in 1 until slots.size) slots[i] = maxOf(slots[i], slots[i - 1] + 1)
+                val applied = still.zip(slots).count { (id, position) -> dao.updateWaitingPosition(id, position) > 0 }
+                ids.size - applied
+            }
+        }) {
+            notifyChanged()
+            then(it)
+        }
+    }
+
     /** "Limpar concluídos": concluídos, descartados e cancelados. As falhas ficam. */
     fun clearFinished(context: Context) {
         io(context, { dao -> dao.deleteFinished() }) { notifyChanged() }

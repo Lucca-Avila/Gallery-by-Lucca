@@ -513,6 +513,8 @@
     <string name="cmp_q_canceled_published">Cancelado junto com a fila. O arquivo comprimido já estava gravado; o original foi mantido.</string>
     <string name="cmp_q_clear">Limpar concluídos</string>
     <string name="cmp_q_remove">Remover</string>
+    <string name="cmp_q_drag">Arrastar para mudar a ordem</string>
+    <string name="cmp_q_reorder_skipped">Um item já começou; a ordem dos demais foi salva</string>
     <string name="cmp_q_dim">Tela escura</string>
     <string name="cmp_q_dim_hint">Toque para voltar</string>
     <string name="cmp_q_section_running">Em andamento</string>
