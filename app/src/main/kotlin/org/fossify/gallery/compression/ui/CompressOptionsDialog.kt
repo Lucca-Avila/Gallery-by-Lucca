@@ -6,6 +6,7 @@ import androidx.annotation.OptIn
 import androidx.appcompat.app.AlertDialog
 import androidx.media3.common.util.UnstableApi
 import org.fossify.commons.activities.BaseSimpleActivity
+import org.fossify.commons.databinding.DialogMessageBinding
 import org.fossify.commons.extensions.beVisible
 import org.fossify.commons.extensions.formatSize
 import org.fossify.commons.extensions.getAlertDialogBuilder
@@ -16,6 +17,7 @@ import org.fossify.gallery.BuildConfig
 import org.fossify.gallery.R
 import org.fossify.gallery.compression.analyzer.VideoInfoCache
 import org.fossify.gallery.compression.analyzer.VideoInfo
+import org.fossify.gallery.compression.mark.CompressedMarks
 import org.fossify.gallery.compression.engine.CompressionPlanner
 import org.fossify.gallery.compression.engine.CompressionPlanner.Preset
 import org.fossify.gallery.compression.queue.QueueEta
@@ -128,15 +130,38 @@ class CompressOptionsDialog(
                 }
             }
             if (dismissed) return@ensureBackgroundThread
+            val compressed = if (!multi) ok.firstOrNull()?.let { (path, info) -> CompressedMarks.detect(activity, path, info) } else null
             activity.runOnUiThread {
                 if (dismissed) return@runOnUiThread
                 when {
                     ok.isEmpty() && !multi -> binding.compressMessage.text = lastError
                     ok.isEmpty() -> binding.compressMessage.text = activity.getString(R.string.cmp_multi_none_readable, failed.joinToString(", "))
+                    compressed != null -> confirmRecompress(compressed) { setup(ok, failed) }
                     else -> setup(ok, failed)
                 }
             }
         }
+    }
+
+    /** Vídeo já comprimido pelo app (qualquer camada): pergunta antes de mostrar as opções; Cancelar fecha tudo. */
+    private fun confirmRecompress(quality: Int, onConfirm: () -> Unit) {
+        dialog?.hide()
+        var confirmed = false
+        val message = DialogMessageBinding.inflate(activity.layoutInflater).apply {
+            this.message.text = activity.getString(R.string.cmp_already_compressed, quality)
+        }
+        activity.getAlertDialogBuilder()
+            .setPositiveButton(R.string.cmp_compress_anyway) { _, _ ->
+                confirmed = true
+                dialog?.show()
+                onConfirm()
+            }
+            .setNegativeButton(org.fossify.commons.R.string.cancel, null)
+            .apply {
+                activity.setupDialogStuff(message.root, this) { warning ->
+                    warning.setOnDismissListener { if (!confirmed) dialog?.dismiss() }
+                }
+            }
     }
 
     private fun setup(videos: List<Pair<String, VideoInfo>>, skipped: List<String>) {

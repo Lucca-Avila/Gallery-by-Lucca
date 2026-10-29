@@ -5,8 +5,8 @@ object CompressedName {
     private const val MARK = "_comp_q"
     private val QUALITY = Regex("_comp_q(\\d+)")
 
-    /** "q40" se o nome tiver a marca, senão null. */
-    fun badge(name: String): String? = QUALITY.findAll(name).lastOrNull()?.let { "q${it.groupValues[1]}" }
+    /** N da marca no nome, senão null. */
+    fun quality(name: String): Int? = QUALITY.findAll(name).lastOrNull()?.groupValues?.get(1)?.toIntOrNull()
 
     /** Começo do trecho final que deve sobrar ao encurtar o nome: da marca até o fim, ou os últimos caracteres. */
     fun tailStart(name: String): Int {

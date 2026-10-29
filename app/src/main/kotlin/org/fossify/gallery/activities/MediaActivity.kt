@@ -57,6 +57,7 @@ import org.fossify.commons.views.MyGridLayoutManager
 import org.fossify.commons.views.MyRecyclerView
 import org.fossify.gallery.R
 import org.fossify.gallery.adapters.MediaAdapter
+import org.fossify.gallery.compression.mark.CompressedMarks
 import org.fossify.gallery.compression.queue.QueueRefreshHook
 import org.fossify.gallery.asynctasks.GetMediaAsynctask
 import org.fossify.gallery.databases.GalleryDatabase
@@ -1041,6 +1042,11 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
             }
             binding.mediaFastscroller.beVisibleIf(binding.mediaEmptyTextPlaceholder.isGone())
             setupAdapter()
+        }
+
+        // Selo q<N> pelo banco e adoção dos já comprimidos pelo nome (Etapa 7); só lê o que já está no Medium.
+        CompressedMarks.onListed(this, media) {
+            runOnUiThread { if (!isDestroyed) getMediaAdapter()?.notifyDataSetChanged() }
         }
 
         mLatestMediaId = getLatestMediaId()

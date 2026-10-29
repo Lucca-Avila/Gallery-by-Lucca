@@ -49,6 +49,8 @@ data class VideoInfo(
     val hevcEncoder: CodecSupport,
     val avcEncoder: CodecSupport,
     val scanned: Boolean,
+    /** N da marca de "já comprimido" dentro do MP4 ([org.fossify.gallery.compression.mark.Mp4Mark]), se houver. */
+    val mark: Int? = null,
 ) {
     val isRotatedSideways get() = rotation == 90 || rotation == 270
     val effectiveWidth get() = if (isRotatedSideways) height else width

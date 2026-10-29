@@ -5,6 +5,7 @@ import android.net.Uri
 import org.fossify.gallery.R
 import org.fossify.gallery.compression.analyzer.VideoAnalyzer
 import org.fossify.gallery.compression.analyzer.VideoInfo
+import org.fossify.gallery.compression.mark.Mp4Mark
 import java.io.File
 import kotlin.math.abs
 
@@ -40,6 +41,7 @@ object ResultVerifier {
         if (abs(info.effectiveWidth - expectedW) > SIZE_TOLERANCE_PX || abs(info.effectiveHeight - expectedH) > SIZE_TOLERANCE_PX) {
             return fail(R.string.cmp_verify_resolution, "${info.effectiveWidth}×${info.effectiveHeight}", "${expectedW}×${expectedH}")
         }
+        if (Mp4Mark.read(result) != options.qualityTag) return fail(R.string.cmp_verify_no_mark)
         return null
     }
 }

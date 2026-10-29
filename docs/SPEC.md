@@ -58,6 +58,11 @@ Os vídeos NÃO são gravados no celular, então as specs são imprevisíveis. O
 - Pontos a validar em protótipo: a marca sobrevive a mover/copiar/enviar por outros apps?
 - Evitar recomprimir vídeos já marcados (avisar antes).
 - A detecção de "já comprimido" deve considerar três sinais: o sufixo `_comp_q<N>` no nome, a marca nos metadados do MP4 e o registro no banco.
+- Implementado (Etapa 7):
+  - A: sufixo `_comp_q<N>` no nome.
+  - B: box `uuid` com "q=<N>;v=1" anexado ao fim do resultado antes do `ResultVerifier` (que confere a marca); sem recodificar. Lido só ao tocar em Comprimir, junto com a análise (fica no cache). Sobrevive a copiar, mover e renomear; envio por apps que recodificam a perde.
+  - C: chave tamanho exato + duração em segundos (os valores do `Medium`), gravada com os valores do MediaStore após o scan do resultado. Vídeos listados com `_comp_q<N>` sem chave no banco são adotados (chave com o N do nome, em segundo plano, sem abrir o arquivo). Risco de falso positivo: dois vídeos com o mesmo tamanho até o byte e a mesma duração.
+  - Selo q<N> igual para as três camadas; a lista usa C, senão A. Ao comprimir: B > C > A (vale a marca). 1 vídeo: aviso com "Comprimir mesmo assim"; lote: selo "já comprimido" e "Remover os já comprimidos".
 
 ### 5. Estimativa de tamanho (menos importante)
 - Já existe (Etapa 3): estimativa por preset na tela de compressão, "≈ X MB (−Y%)", para a resolução escolhida e atualizada ao mudá-la.

@@ -31,6 +31,7 @@ import org.fossify.gallery.activities.SimpleActivity
 import org.fossify.gallery.compression.analyzer.VideoInfo
 import org.fossify.gallery.compression.analyzer.VideoInfoCache
 import org.fossify.gallery.compression.engine.CompressionPlanner
+import org.fossify.gallery.compression.mark.CompressedMarks
 import org.fossify.gallery.compression.engine.CompressionPlanner.Preset
 import org.fossify.gallery.compression.queue.QueueEta
 import org.fossify.gallery.compression.queue.QueueRepository
@@ -68,6 +69,8 @@ class CompressBatchActivity : SimpleActivity() {
         val errors = ConcurrentHashMap<String, String>()
         val overrides = ConcurrentHashMap<String, RuleOverride>()
         val removed: MutableSet<String> = ConcurrentHashMap.newKeySet()
+        /** N do selo q<N> dos vídeos já comprimidos pelo app (qualquer camada). */
+        val compressed = ConcurrentHashMap<String, Int>()
         @Volatile var analyzed = 0
         @Volatile var closed = false
         @Volatile var listener: (() -> Unit)? = null
@@ -102,6 +105,7 @@ class CompressBatchActivity : SimpleActivity() {
                     if (decoder != null && !decoder.supported) {
                         errors[path] = context.getString(R.string.cmp_err_no_decoder, info.videoMime ?: context.getString(R.string.cmp_unknown))
                     } else {
+                        CompressedMarks.detect(context, path, info)?.let { compressed[path] = it }
                         infos[path] = info
                     }
                 } catch (e: Exception) {
@@ -121,6 +125,7 @@ class CompressBatchActivity : SimpleActivity() {
         val efficient: Boolean,
         val custom: Boolean,
         val clickable: Boolean,
+        val compressed: Int? = null,
     )
 
     private class Summary(
@@ -130,6 +135,7 @@ class CompressBatchActivity : SimpleActivity() {
         val etaSeconds: Long,
         val ready: Int,
         val efficient: List<String>,
+        val compressed: List<String>,
         val skipped: Int,
         val done: Boolean,
     )
@@ -147,6 +153,7 @@ class CompressBatchActivity : SimpleActivity() {
         binding.batchList.adapter = adapter
         binding.batchRuleEdit.setOnClickListener { editGeneral() }
         binding.batchRemoveEfficient.setOnClickListener { removeEfficient() }
+        binding.batchRemoveCompressed.setOnClickListener { removeCompressed() }
         binding.batchAddAll.setOnClickListener { addAll() }
         setupEdgeToEdge(padTopSystem = listOf(binding.batchAppbar), padBottomSystem = listOf(binding.batchFooter))
         setupMaterialScrollListener(binding.batchList, binding.batchAppbar)
@@ -167,7 +174,7 @@ class CompressBatchActivity : SimpleActivity() {
         setupTopAppBar(binding.batchAppbar, NavigationIcon.Arrow)
         updateTextColors(binding.batchHolder)
         val primary = getProperPrimaryColor()
-        listOf(binding.batchRuleEdit, binding.batchRemoveEfficient, binding.batchAddAll).forEach { it.setTextColor(primary) }
+        listOf(binding.batchRuleEdit, binding.batchRemoveEfficient, binding.batchRemoveCompressed, binding.batchAddAll).forEach { it.setTextColor(primary) }
         val divider = getProperTextColor()
         binding.batchDividerTop.setBackgroundColor(divider)
         binding.batchDividerBottom.setBackgroundColor(divider)
@@ -216,6 +223,7 @@ class CompressBatchActivity : SimpleActivity() {
         var ready = 0
         var skipped = 0
         val efficient = mutableListOf<String>()
+        val compressed = mutableListOf<String>()
         session.paths.forEach { path ->
             if (path in session.removed) return@forEach
             val name = File(path).name
@@ -235,14 +243,16 @@ class CompressBatchActivity : SimpleActivity() {
             val resolution = "${size.width}×${size.height}"
             val res = if (shortSide == null) getString(R.string.cmp_b_row_original_res, resolution) else resolution
             val detail = getString(R.string.cmp_b_row_estimate, res, est.formatSize(), formatDelta(est, info.fileSize))
-            rows.add(Row(path, name, detail, isEfficient, custom = session.overrides.containsKey(path), clickable = true))
+            val quality = session.compressed[path]
+            rows.add(Row(path, name, detail, isEfficient, custom = session.overrides.containsKey(path), clickable = true, compressed = quality))
             original += info.fileSize
             estimate += est
             seconds += (QueueEta.pixels(size.width, size.height, CompressionPlanner.fpsOf(info), info.durationMs) ?: 0.0) / speed
             ready++
             if (isEfficient) efficient.add(path)
+            if (quality != null) compressed.add(path)
         }
-        return Summary(rows, original, estimate, Math.round(seconds), ready, efficient, skipped, done = session.analyzed >= session.paths.size)
+        return Summary(rows, original, estimate, Math.round(seconds), ready, efficient, compressed, skipped, done = session.analyzed >= session.paths.size)
     }
 
     private fun applySummary(s: Summary) {
@@ -262,6 +272,9 @@ class CompressBatchActivity : SimpleActivity() {
         } else {
             getString(R.string.cmp_b_efficient_count, s.efficient.size)
         }
+        binding.batchCompressed.beVisibleIf(s.compressed.isNotEmpty())
+        binding.batchCompressed.text = getString(R.string.cmp_b_compressed_count, s.compressed.size)
+        binding.batchRemoveCompressed.beVisibleIf(s.compressed.isNotEmpty())
         binding.batchSkipped.beVisibleIf(s.skipped > 0)
         binding.batchSkipped.text = getString(R.string.cmp_b_skipped, s.skipped)
         setEnabled(binding.batchRuleEdit, s.ready > 0)
@@ -355,6 +368,16 @@ class CompressBatchActivity : SimpleActivity() {
         recompute()
     }
 
+    /** Os já comprimidos só saem por aqui; sem isso, "Adicionar todos" os inclui. */
+    private fun removeCompressed() {
+        val compressed = summary?.compressed.orEmpty()
+        if (compressed.isEmpty()) return
+        session.removed.addAll(compressed)
+        compressed.forEach { session.overrides.remove(it) }
+        toast(getString(R.string.cmp_b_removed, compressed.size))
+        recompute()
+    }
+
     private fun addAll() {
         setEnabled(binding.batchAddAll, false)
         worker.execute {
@@ -394,7 +417,11 @@ class CompressBatchActivity : SimpleActivity() {
                 batchItemName.setTextColor(textColor)
                 batchItemDetail.text = row.detail
                 batchItemDetail.setTextColor(textColor)
-                batchItemBadges.beVisibleIf(row.efficient || row.custom)
+                batchItemBadges.beVisibleIf(row.efficient || row.custom || row.compressed != null)
+                batchItemBadgeCompressed.beVisibleIf(row.compressed != null)
+                batchItemBadgeCompressed.text = row.compressed?.let { getString(R.string.cmp_b_badge_compressed, it) }
+                batchItemBadgeCompressed.background = badge(COMPRESSED_COLOR)
+                batchItemBadgeCompressed.setTextColor(textColor)
                 batchItemBadgeEfficient.beVisibleIf(row.efficient)
                 batchItemBadgeEfficient.background = badge(EFFICIENT_COLOR)
                 batchItemBadgeEfficient.setTextColor(textColor)
@@ -417,6 +444,7 @@ class CompressBatchActivity : SimpleActivity() {
         private const val THROTTLE_MS = 200L
         private const val DISABLED_ALPHA = 0.4f
         private val EFFICIENT_COLOR = Color.parseColor("#FFB300")
+        private val COMPRESSED_COLOR = Color.parseColor("#43A047")
         private val sessions = ConcurrentHashMap<Long, Session>()
 
         /** A lista vai por memória do processo; o Intent só leva a chave. */

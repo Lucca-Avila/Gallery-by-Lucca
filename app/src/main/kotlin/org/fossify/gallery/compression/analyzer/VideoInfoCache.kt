@@ -6,6 +6,7 @@ import android.os.Build
 import android.util.Log
 import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
+import org.fossify.gallery.compression.mark.Mp4Mark
 import org.fossify.gallery.compression.queue.QueueDatabase
 import org.fossify.gallery.compression.queue.VideoInfoDao
 import org.fossify.gallery.compression.queue.VideoInfoEntry
@@ -68,7 +69,7 @@ object VideoInfoCache {
         val dao = if (size > 0 && modified > 0) runCatching { QueueDatabase.getInstance(context).VideoInfoDao() }.getOrNull() else null
         val estimate = runCatching { lookup(dao?.get(path), size, modified) }.getOrNull()?.takeIf { !it.scanned }
             ?: VideoAnalyzer.analyze(context, uri, isCancelled)
-        val measured = VideoAnalyzer.analyze(context, uri, isCancelled, precise = true)
+        val measured = withMark(file, VideoAnalyzer.analyze(context, uri, isCancelled, precise = true))
         if (isCancelled()) return measured
         logComparison(file.name, estimate, measured)
         if (dao != null) store(dao, path, size, modified, measured)
@@ -110,10 +111,14 @@ object VideoInfoCache {
                 return hit
             }
         }
-        val info = VideoAnalyzer.analyze(context, uri, isCancelled)
+        val info = withMark(file, VideoAnalyzer.analyze(context, uri, isCancelled))
         if (dao != null && !isCancelled()) store(dao, path, size, modified, info)
         return info
     }
+
+    /** A marca do MP4 é lida junto com a análise (só ao comprimir ou abrir as informações), nunca pela lista. */
+    private fun withMark(file: File, info: VideoInfo): VideoInfo =
+        if (file.isFile) info.copy(mark = Mp4Mark.read(file)) else info
 
     private fun lookup(entry: VideoInfoEntry?, size: Long, modified: Long): VideoInfo? =
         entry?.takeIf { it.size == size && it.modified == modified && it.schemaVersion == VideoInfoJson.SCHEMA && it.build == Build.VERSION.INCREMENTAL }

@@ -51,7 +51,7 @@ import org.fossify.commons.models.FileDirItem
 import org.fossify.commons.views.MyRecyclerView
 import org.fossify.gallery.R
 import org.fossify.gallery.compression.ui.CompressFlow
-import org.fossify.gallery.compression.ui.CompressedName
+import org.fossify.gallery.compression.mark.CompressedMarks
 import org.fossify.gallery.compression.analyzer.VideoInfoDialog
 import org.fossify.gallery.activities.ViewPagerActivity
 import org.fossify.gallery.databinding.PhotoItemGridBinding
@@ -727,7 +727,7 @@ class MediaAdapter(
             }
 
             mediumBadge?.apply {
-                val badge = if (isListViewType) CompressedName.badge(medium.name) else null
+                val badge = if (isListViewType) CompressedMarks.badge(medium) else null
                 beVisibleIf(badge != null)
                 text = badge
                 setTextColor(textColor)

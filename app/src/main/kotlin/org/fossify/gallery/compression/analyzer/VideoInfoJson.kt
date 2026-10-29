@@ -9,7 +9,8 @@ import org.json.JSONObject
  */
 object VideoInfoJson {
     // 2: a análise padrão passou a ser estimativa (as entradas antigas vinham da varredura completa).
-    const val SCHEMA = 2
+    // 3: marca de "já comprimido" (mark); as entradas antigas não a leram.
+    const val SCHEMA = 3
 
     fun toJson(info: VideoInfo): String = JSONObject().apply {
         put("containerMime", info.containerMime)
@@ -37,6 +38,7 @@ object VideoInfoJson {
         put("hevcEncoder", codec(info.hevcEncoder))
         put("avcEncoder", codec(info.avcEncoder))
         put("scanned", info.scanned)
+        put("mark", info.mark)
     }.toString()
 
     /** null se o texto estiver corrompido ou incompleto (o cache trata como se não existisse). */
@@ -68,6 +70,7 @@ object VideoInfoJson {
             hevcEncoder = codec(o.getJSONObject("hevcEncoder")),
             avcEncoder = codec(o.getJSONObject("avcEncoder")),
             scanned = o.getBoolean("scanned"),
+            mark = o.intOrNull("mark"),
         )
     } catch (e: Exception) {
         null

@@ -1,8 +1,11 @@
 package org.fossify.gallery.compression.engine
 
 import android.content.Context
+import android.util.Log
 import org.fossify.gallery.R
 import org.fossify.gallery.compression.analyzer.VideoInfo
+import org.fossify.gallery.compression.mark.CompressedMarks
+import org.fossify.gallery.compression.mark.Mp4Mark
 import org.fossify.gallery.compression.ui.CompressionPrefs
 import java.io.File
 
@@ -45,6 +48,8 @@ class CompressionPipeline(
     }
 
     fun run(result: CompressionResult, onStage: (Stage) -> Unit, onDone: (Outcome) -> Unit) {
+        // Marca de "já comprimido" (camada B); a falha não impede gravar, mas o ResultVerifier a acusa.
+        if (!Mp4Mark.append(result.file, options.qualityTag)) Log.w(TAG, "não foi possível anexar a marca a ${result.file.name}")
         val newSize = result.file.length()
         val published: PublishedFile
         val dateCheck: DatePreserver.Check
@@ -71,6 +76,9 @@ class CompressionPipeline(
     /** Verificação e tratamento do original. Também usado pela fila para retomar um item já publicado. */
     fun finish(newSize: Long, published: PublishedFile, dateCheck: DatePreserver.Check, onStage: (Stage) -> Unit, onDone: (Outcome) -> Unit) {
         fun done(line: String) = onDone(Outcome.Done(newSize, published, dateCheck, line))
+        // Chave tamanho + duração (camada C), com os valores do MediaStore depois do scan feito por DatePreserver.apply.
+        runCatching { CompressedMarks.registerResult(context, published.file, options.qualityTag) }
+            .onFailure { Log.w(TAG, "não foi possível registrar a chave de ${published.name}", it) }
         try {
             if (after == CompressionPrefs.AFTER_KEEP) {
                 done(context.getString(R.string.cmp_result_original_kept))
@@ -86,5 +94,9 @@ class CompressionPipeline(
         } catch (e: Exception) {
             onDone(Outcome.Failed(e.message ?: e.javaClass.simpleName))
         }
+    }
+
+    private companion object {
+        const val TAG = "CompressionPipeline"
     }
 }

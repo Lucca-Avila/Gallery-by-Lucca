@@ -115,11 +115,14 @@ Fora do escopo: lembrar a regra por pasta (a última regra global da 6c-2 cobre 
 - [x] Testado no aparelho, inclusive a corrida (editor aberto, item começa, confirmar).
 - Descartado por decisão: "Editar aguardando" (vários itens de uma vez, tela de lote em modo EDITAR); o "Editar" de um item e a tela de lote bastam. Pode voltar se fizer falta (reaproveitaria `QueueEdit.ruleOf` e a gravação condicional).
 
-## Etapa 7: Marca de "já comprimido"
-- [ ] Protótipo: gravar marca nos metadados do MP4; verificar se sobrevive a mover/copiar.
-- [ ] Registro no banco como reforço.
-- [ ] Detecção de "já comprimido" considera os três sinais: sufixo `_comp_q<N>` no nome, marca nos metadados e registro no banco.
-- [ ] Selo visual na galeria; aviso ao tentar recomprimir.
+## Etapa 7: Marca de "já comprimido" (concluída)
+- [x] Protótipo: box `uuid` "q=<N>;v=1" anexado ao fim do MP4; sobrevive a copiar, mover e renomear (envio por outro app não testado; apps que recodificam devem perdê-la).
+- [x] B: marca anexada a todo resultado novo antes do `ResultVerifier` (que a confere); lida só ao comprimir, guardada no cache de análise (`VideoInfoJson.SCHEMA` 3).
+- [x] C: tabela `compressed_keys` (migração 4→5), chave tamanho + duração em segundos com os valores do MediaStore após o scan; carregada uma vez e mantida em memória.
+- [x] Adoção: vídeo listado com `_comp_q<N>` cuja chave não está no banco ganha a chave com o N do nome (em segundo plano, em lote, sem abrir o arquivo). Requer tamanho e duração no `Medium` (modo lista com duração nas miniaturas).
+- [x] Detecção pelas três camadas, selo q<N> igual para todas (lista: C, senão A; ao comprimir: B > C > A).
+- [x] 1 vídeo: aviso "Este vídeo já foi comprimido pelo app (q<N>)" com Cancelar / Comprimir mesmo assim. Lote: selo "já comprimido (q<N>)", contagem e "Remover os já comprimidos"; "Adicionar todos" os inclui.
+- [x] Testado no aparelho (inclusive Pasta Segura, migração 4→5 com a fila populada e a adoção ao renomear).
 
 ## Etapa 8: Estimativa de tamanho
 (A estimativa por preset já existe desde a Etapa 3.)

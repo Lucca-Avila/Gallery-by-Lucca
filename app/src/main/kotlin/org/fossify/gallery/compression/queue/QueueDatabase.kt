@@ -8,12 +8,14 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 /** Banco próprio da fila (compression_queue.db), separado do GalleryDatabase do Fossify. */
-@Database(entities = [QueueItem::class, VideoInfoEntry::class], version = 4, exportSchema = false)
+@Database(entities = [QueueItem::class, VideoInfoEntry::class, CompressedKeyEntry::class], version = 5, exportSchema = false)
 abstract class QueueDatabase : RoomDatabase() {
 
     abstract fun QueueDao(): QueueDao
 
     abstract fun VideoInfoDao(): VideoInfoDao
+
+    abstract fun CompressedKeyDao(): CompressedKeyDao
 
     companion object {
         @Volatile
@@ -54,12 +56,22 @@ abstract class QueueDatabase : RoomDatabase() {
             }
         }
 
+        /** Chaves da marca de "já comprimido" (Etapa 7); as outras tabelas não são tocadas. */
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `compressed_keys` (`size` INTEGER NOT NULL, `duration_s` INTEGER NOT NULL, " +
+                        "`quality` INTEGER NOT NULL, `source` INTEGER NOT NULL, `added_at` INTEGER NOT NULL, PRIMARY KEY(`size`, `duration_s`))"
+                )
+            }
+        }
+
         fun getInstance(context: Context): QueueDatabase {
             if (db == null) {
                 synchronized(QueueDatabase::class) {
                     if (db == null) {
                         db = Room.databaseBuilder(context.applicationContext, QueueDatabase::class.java, "compression_queue.db")
-                            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                             .build()
                     }
                 }

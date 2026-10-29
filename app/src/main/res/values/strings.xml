@@ -425,6 +425,9 @@
     <string name="cmp_verify_no_audio">sem trilha de áudio, mas o original tinha</string>
     <string name="cmp_verify_duration">duração diferente (original %1$.1f s, novo %2$.1f s)</string>
     <string name="cmp_verify_resolution">resolução %1$s, esperada %2$s</string>
+    <string name="cmp_verify_no_mark">marca de \"já comprimido\" ausente no arquivo novo</string>
+    <string name="cmp_already_compressed">Este vídeo já foi comprimido pelo app (q%1$d). Comprimir de novo mesmo assim?</string>
+    <string name="cmp_compress_anyway">Comprimir mesmo assim</string>
     <string name="cmp_trash_failed">Não foi possível copiar para a lixeira.</string>
     <string name="cmp_delete_failed">Não foi possível apagar o original.</string>
     <string name="cmp_trashed_not_deleted">Há uma cópia na lixeira, mas não foi possível apagar o original.</string>
@@ -575,4 +578,7 @@
     <string name="cmp_b_remove_efficient">Remover os já eficientes</string>
     <string name="cmp_b_add_all">Adicionar todos à fila</string>
     <string name="cmp_b_removed">%1$d removido(s) do lote</string>
+    <string name="cmp_b_badge_compressed">já comprimido (q%1$d)</string>
+    <string name="cmp_b_compressed_count">%1$d já comprimido(s) pelo app</string>
+    <string name="cmp_b_remove_compressed">Remover os já comprimidos</string>
 </resources>
