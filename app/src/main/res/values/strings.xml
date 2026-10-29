@@ -571,6 +571,10 @@
     <string name="cmp_b_badge_efficient">já eficiente</string>
     <string name="cmp_b_badge_custom">personalizado</string>
     <string name="cmp_b_total">Total: %1$s → ≈ %2$s (%3$s) · %4$s</string>
+    <string name="cmp_compare_original">Original: %1$s</string>
+    <string name="cmp_compare_same">Mesma resolução: ≈ %1$s (%2$s)</string>
+    <string name="cmp_compare_res">%1$dp: ≈ %2$s</string>
+    <string name="cmp_b_total_what_if">Se mesma resolução: ≈ %1$s (%2$s) | Se 720p: ≈ %3$s (%4$s)</string>
     <string name="cmp_b_total_analyzing">Analisando %1$d de %2$d…</string>
     <string name="cmp_b_efficient_count">%1$d já eficiente(s); ganho pequeno</string>
     <string name="cmp_b_efficient_none">Nenhum vídeo já eficiente</string>

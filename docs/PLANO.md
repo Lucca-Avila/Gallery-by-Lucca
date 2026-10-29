@@ -126,7 +126,9 @@ Fora do escopo: lembrar a regra por pasta (a última regra global da 6c-2 cobre 
 
 ## Etapa 8: Estimativa de tamanho
 (A estimativa por preset já existe desde a Etapa 3.)
-- [ ] Mostrar "original / resolução original / 720p" lado a lado antes de comprimir, se ainda não existir.
+- [x] 1 vídeo: linha de comparação "Original | Mesma resolução | 1080p | 720p | 480p" (só resoluções menores), com a escolhida em negrito, atualizada ao mudar o preset.
+- [x] Tela de lote: total estimado "se mesma resolução / se 720p" no rodapé, com a regra geral e as sobrescritas de qualidade; reaproveita o RulePlanner.
+- [x] Testado no aparelho.
 
 ## Etapa 9: Polimento
 - [ ] Vídeos HDR/10 bits, 60 fps, formatos que o celular não decodifica, arquivos corrompidos, vídeos muito longos, pouco espaço em disco.

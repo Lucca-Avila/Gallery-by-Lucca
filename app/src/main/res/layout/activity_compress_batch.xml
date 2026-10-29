@@ -108,6 +108,13 @@
                 android:textStyle="bold" />
 
             <org.fossify.commons.views.MyTextView
+                android:id="@+id/batch_total_what_if"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="13sp"
+                android:visibility="gone" />
+
+            <org.fossify.commons.views.MyTextView
                 android:id="@+id/batch_efficient"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

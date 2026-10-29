@@ -133,6 +133,9 @@ class CompressBatchActivity : SimpleActivity() {
         val originalTotal: Long,
         val estimateTotal: Long,
         val etaSeconds: Long,
+        /** Total estimado se todos fossem na mesma resolução / em 720p (qualidade e sobrescritas de qualidade mantidas). */
+        val sameResTotal: Long,
+        val res720Total: Long,
         val ready: Int,
         val efficient: List<String>,
         val compressed: List<String>,
@@ -219,6 +222,8 @@ class CompressBatchActivity : SimpleActivity() {
         val rows = ArrayList<Row>(session.paths.size)
         var original = 0L
         var estimate = 0L
+        var sameRes = 0L
+        var res720 = 0L
         var seconds = 0.0
         var ready = 0
         var skipped = 0
@@ -247,12 +252,14 @@ class CompressBatchActivity : SimpleActivity() {
             rows.add(Row(path, name, detail, isEfficient, custom = session.overrides.containsKey(path), clickable = true, compressed = quality))
             original += info.fileSize
             estimate += est
+            sameRes += RulePlanner.estimateSize(info, rule.copy(shortSide = null))
+            res720 += RulePlanner.estimateSize(info, rule.copy(shortSide = 720))
             seconds += (QueueEta.pixels(size.width, size.height, CompressionPlanner.fpsOf(info), info.durationMs) ?: 0.0) / speed
             ready++
             if (isEfficient) efficient.add(path)
             if (quality != null) compressed.add(path)
         }
-        return Summary(rows, original, estimate, Math.round(seconds), ready, efficient, compressed, skipped, done = session.analyzed >= session.paths.size)
+        return Summary(rows, original, estimate, Math.round(seconds), sameRes, res720, ready, efficient, compressed, skipped, done = session.analyzed >= session.paths.size)
     }
 
     private fun applySummary(s: Summary) {
@@ -267,6 +274,12 @@ class CompressBatchActivity : SimpleActivity() {
                 QueueEta.formatDuration(this, s.etaSeconds)
             )
         }
+        binding.batchTotalWhatIf.beVisibleIf(s.done && s.ready > 0)
+        binding.batchTotalWhatIf.text = getString(
+            R.string.cmp_b_total_what_if,
+            s.sameResTotal.formatSize(), formatDelta(s.sameResTotal, s.originalTotal),
+            s.res720Total.formatSize(), formatDelta(s.res720Total, s.originalTotal)
+        )
         binding.batchEfficient.text = if (s.efficient.isEmpty()) {
             getString(R.string.cmp_b_efficient_none)
         } else {

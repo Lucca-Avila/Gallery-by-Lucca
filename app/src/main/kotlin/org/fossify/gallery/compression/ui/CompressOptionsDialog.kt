@@ -377,7 +377,40 @@ class CompressOptionsDialog(
         ) + audioInfoLine(info)
         binding.compressEfficientWarning.visibility =
             if (RulePlanner.isEfficient(info, currentRule())) android.view.View.VISIBLE else android.view.View.GONE
+        refreshCompare(info)
         refreshEta()
+    }
+
+    /** Tamanho estimado da qualidade escolhida em cada resolução (nunca upscale); a escolhida fica em negrito. */
+    private fun refreshCompare(info: VideoInfo) {
+        val base = currentRule()
+        val selected = selectedShortSide()
+        fun estimate(shortSide: Int?): Long {
+            var rule = base.copy(shortSide = shortSide)
+            // O Personalizado sem toque no slider volta ao % do Balanceado ao trocar de resolução (ver o listener do grupo).
+            if (rule.preset == null && !sliderTouched) {
+                rule = rule.copy(customPct = RulePlanner.presetPct(info, shortSide, Preset.BALANCED))
+            }
+            return RulePlanner.estimateSize(info, rule)
+        }
+        val parts = mutableListOf<Pair<String, Boolean>>()
+        parts.add(activity.getString(R.string.cmp_compare_original, info.fileSize.formatSize()) to false)
+        val same = estimate(null)
+        val delta = if (info.fileSize > 0) ((same - info.fileSize) * 100.0 / info.fileSize).roundToInt() else 0
+        val pct = if (delta <= 0) "−${-delta}%" else "+$delta%"
+        parts.add(activity.getString(R.string.cmp_compare_same, same.formatSize(), pct) to (selected == null))
+        CompressionPlanner.resolutionChoices(info).forEach { res ->
+            parts.add(activity.getString(R.string.cmp_compare_res, res, estimate(res).formatSize()) to (selected == res))
+        }
+        val text = android.text.SpannableStringBuilder()
+        parts.forEachIndexed { i, (label, bold) ->
+            if (i > 0) text.append(" | ")
+            val start = text.length
+            text.append(label)
+            if (bold) text.setSpan(android.text.style.StyleSpan(android.graphics.Typeface.BOLD), start, text.length, 0)
+        }
+        binding.compressCompare.text = text
+        binding.compressCompare.visibility = android.view.View.VISIBLE
     }
 
     /** Tempo estimado de compressão dos vídeos escolhidos, com a resolução de saída atual. */
