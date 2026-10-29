@@ -22,7 +22,7 @@ import org.fossify.gallery.compression.engine.CompressionException
 import org.fossify.gallery.compression.engine.DatePreserver
 import org.fossify.gallery.compression.engine.ResultVerifier
 import org.fossify.gallery.compression.engine.CompressionOptions
-import org.fossify.gallery.compression.engine.CompressionOutput
+import org.fossify.gallery.compression.engine.CompressionPipeline
 import org.fossify.gallery.compression.engine.Destination
 import org.fossify.gallery.compression.engine.PublishedFile
 import org.fossify.gallery.compression.engine.CompressionResult
@@ -100,14 +100,6 @@ class CompressFlow(
                     result.file.delete()
                     return
                 }
-                val newSize = result.file.length()
-                if (ResultVerifier.shouldDiscard(newSize, originalSize)) {
-                    result.file.delete()
-                    progressDialog?.dismiss()
-                    showDiscarded(newSize, originalSize)
-                    return
-                }
-                binding.compressProgressPct.text = activity.getString(R.string.cmp_saving)
                 progressDialog?.getButton(AlertDialog.BUTTON_NEGATIVE)?.isEnabled = false
                 publish(result, info, options, destination, after, binding)
             }
@@ -129,44 +121,38 @@ class CompressFlow(
         result: CompressionResult, info: VideoInfo, options: CompressionOptions, destination: Destination, after: Int,
         progress: DialogCompressProgressBinding,
     ) {
+        val pipeline = CompressionPipeline(activity, path, info, options, destination, after, ::removeOriginal)
         ensureBackgroundThread {
-            try {
-                val newSize = result.file.length()
-                val dates = DatePreserver.read(activity, path)
-                val published = CompressionOutput.publish(activity, result.file, destination, File(path).name, options.qualityTag)
-                val dateCheck = dates?.let { DatePreserver.apply(activity, published.file, it) }
-                    ?: DatePreserver.Check(false, activity.getString(R.string.cmp_date_unreadable))
-                if (after == CompressionPrefs.AFTER_KEEP) {
-                    activity.runOnUiThread { done(result, info.fileSize, newSize, published, dateCheck, activity.getString(R.string.cmp_result_original_kept)) }
-                    return@ensureBackgroundThread
-                }
-                activity.runOnUiThread { progress.compressProgressPct.text = activity.getString(R.string.cmp_verifying) }
-                val problem = ResultVerifier.verify(activity, published.file, info, options)
-                activity.runOnUiThread {
-                    if (problem != null) {
-                        done(result, info.fileSize, newSize, published, dateCheck, activity.getString(R.string.cmp_result_original_not_removed, problem))
-                    } else {
-                        removeOriginal(after, info.fileSize) { line -> done(result, info.fileSize, newSize, published, dateCheck, line) }
+            pipeline.run(
+                result,
+                onStage = { stage ->
+                    activity.runOnUiThread {
+                        progress.compressProgressPct.text =
+                            activity.getString(if (stage == CompressionPipeline.Stage.SAVING) R.string.cmp_saving else R.string.cmp_verifying)
                     }
-                }
-            } catch (e: Exception) {
-                activity.runOnUiThread {
-                    progressDialog?.dismiss()
-                    showError(activity.getString(R.string.cmp_err_generic, e.message ?: e.javaClass.simpleName))
-                }
-            } finally {
-                result.file.delete()
-            }
+                },
+                onDone = { outcome ->
+                    activity.runOnUiThread {
+                        progressDialog?.dismiss()
+                        when (outcome) {
+                            is CompressionPipeline.Outcome.Discarded -> showDiscarded(outcome.newSize, outcome.originalSize)
+                            is CompressionPipeline.Outcome.Failed ->
+                                showError(activity.getString(R.string.cmp_err_generic, outcome.message))
+                            is CompressionPipeline.Outcome.Done ->
+                                showResult(result, info.fileSize, outcome.newSize, outcome.published, outcome.dateCheck, outcome.originalLine)
+                        }
+                    }
+                },
+            )
         }
     }
 
-    private fun done(result: CompressionResult, before: Long, after: Long, published: PublishedFile, dateCheck: DatePreserver.Check, originalLine: String) {
-        progressDialog?.dismiss()
-        showResult(result, before, after, published, dateCheck, originalLine)
+    /** A lixeira copia o arquivo para a pasta do app; só então o original é apagado. */
+    private fun removeOriginal(path: String, size: Long, after: Int, onDone: (String) -> Unit) {
+        activity.runOnUiThread { removeOriginalOnUi(after, size, onDone) }
     }
 
-    /** UI thread. A lixeira copia o arquivo para a pasta do app; só então o original é apagado. */
-    private fun removeOriginal(after: Int, size: Long, onDone: (String) -> Unit) {
+    private fun removeOriginalOnUi(after: Int, size: Long, onDone: (String) -> Unit) {
         fun deleteIt(failureRes: Int) {
             val item = FileDirItem(path, File(path).name, false, 0, size)
             activity.tryDeleteFileDirItem(item, false, true) { ok ->

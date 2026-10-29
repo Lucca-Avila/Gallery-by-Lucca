@@ -53,13 +53,27 @@
 - [x] Testar que a ordem na galeria não muda (testado no aparelho, na Pasta Segura).
 - [x] Verificação de data tolerante (±2 s, releitura após o scan) que informa o campo divergente; botão "Comprimir" na barra de seleção (à esquerda da lixeira, 1 vídeo); lista atualizada automaticamente ao fechar o resultado.
 
-## Etapa 6: Fila de compressão
-- [ ] Serviço em primeiro plano + notificação de progresso.
-- [ ] Seleção múltipla na galeria -> "Comprimir na fila".
-- [ ] Tela da fila (ver, remover, reordenar, cancelar, trocar destino de um item).
-- [ ] Confirmação de apagar originais única por lote (não uma por vídeo).
-- [ ] Pular automaticamente, ou perguntar antes, vídeos já eficientes (aviso de vídeo já eficiente) durante o processamento da fila.
-- [ ] Testar com tela apagada e com vários vídeos.
+## Etapa 6: Fila de compressão (plano aprovado; fila única e permanente, um item por vez)
+### 6a-1: Extração do CompressionPipeline (sem fila)
+- [x] `CompressionPipeline` (engine, sem UI): descarte por economia < 5%, gravação no destino, data, verificação e remoção do original, via `OriginalRemover`. `CompressFlow` passa a usá-lo, sem mudar o comportamento.
+- [x] Validado por mim no aparelho: um vídeo pelo caminho completo (compressão, gravação, data, original). Só então começa o 6a-2.
+
+### 6a-2: Fila (motor)
+- [ ] Banco Room próprio `compression_queue.db` (fora do GalleryDatabase), repositório e `QueueRunner` (um item por vez; estados aguardando, comprimindo, concluído, falhou, descartado, cancelado; fase do item para recuperação).
+- [ ] `QueueService` em primeiro plano, tipo `mediaProcessing` (permissões no manifest), `onTimeout` (cancela o item atual, devolve a aguardando, grava "pausada pelo limite" e avisa), wake lock parcial por item, Transformer na thread principal.
+- [ ] Permissão de notificações pedida na primeira adição; notificação com "item i de N" e %, toque abre a fila, ações "Pausar" e "Pular item atual"; resumo final (concluídos, falhas, economia).
+- [ ] Todo "Comprimir" (1 ou vários vídeos) entra no fim da fila; diálogo de progresso antigo deixa de ser usado. Aviso rápido "Adicionado à fila (n.º X)" com ação "Ver fila", sem abrir a tela. Avisa se o vídeo já está na fila.
+- [ ] Preferência "Iniciar fila automaticamente" (padrão ligada). Pausar (termina o item atual, padrão) e "Pausar agora" (secundária).
+- [ ] Opções por adição com estimativa somada; aviso de vídeos já eficientes ("Adicionar todos mesmo assim" / "Adicionar só os demais").
+- [ ] "Apagar de vez": confirmação única por lote (quantidade e tamanho total). O consentimento vale só para aquele lote e para a sessão em que foi dado: ao retomar a fila em outro dia (ou após o processo ser morto), itens com "apagar de vez" voltam a pedir confirmação antes de apagar; nunca apaga sem passar pelo `ResultVerifier`.
+- [ ] Recuperação: item "comprimindo" volta a aguardando, temporário órfão apagado, 2 mortes seguidas no mesmo item = falhou; destino parcial apagado; fase "publicado" retoma só o pós-processamento. Banner "Fila interrompida: Retomar" ao abrir o app.
+- [ ] Falha de um item não para os demais; motivo gravado.
+- [ ] Tela mínima: lista com nome, estado e %; em itens concluídos, tamanho antes e depois; motivo quando falhou ou foi descartado; Iniciar/Pausar; `FLAG_KEEP_SCREEN_ON` enquanto a fila roda.
+- [ ] Testar: tela ligada, tela apagada, dentro da Pasta Segura (inclusive com o bloqueio automático dela), app morto no meio de um item, vídeo corrompido no lote, "apagar de vez" em lote pequeno, notificação negada.
+
+### 6b: Tela da fila
+- [ ] Visual final: remover, reordenar, cancelar item, cancelar a fila inteira (com confirmação), trocar destino e opções por item, limpar concluídos.
+- [ ] Tela escura de baixo consumo (brilho mínimo, quase preta, só o progresso, texto que muda de posição; um toque volta ao normal).
 
 ## Etapa 7: Marca de "já comprimido"
 - [ ] Protótipo: gravar marca nos metadados do MP4; verificar se sobrevive a mover/copiar.
@@ -73,5 +87,6 @@
 
 ## Etapa 9: Polimento
 - [ ] Vídeos HDR/10 bits, 60 fps, formatos que o celular não decodifica, arquivos corrompidos, vídeos muito longos, pouco espaço em disco.
+- [ ] Pausa automática da fila por status térmico severo (`PowerManager` thermal status), retomando quando o aparelho esfriar.
 - [ ] Ajustes de interface e correção de bugs.
 - Pendente de teste com amostras reais: áudio 5.1/7.1 (downmix), canais desconhecidos, vídeo vertical, 4K/HDR, MKV com várias trilhas e legendas, arquivos maiores que 1,5 GB.
