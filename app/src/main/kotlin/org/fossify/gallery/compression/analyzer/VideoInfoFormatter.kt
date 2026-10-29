@@ -27,7 +27,7 @@ object VideoInfoFormatter {
             sb.line(s(R.string.vi_video_bitrate), i.videoBitrate?.let { mbps(it.bps) + tag(context, it.source) } ?: "?")
             val bpp = bitsPerPixel(i)
             sb.line(s(R.string.vi_bpp), bpp?.let { String.format(Locale.US, "%.4f", it) } ?: "?")
-            if (i.declaredVideoBitrate != null && i.videoBitrate?.source == ValueSource.MEASURED) {
+            if (i.declaredVideoBitrate != null && i.videoBitrate?.source != ValueSource.DECLARED) {
                 sb.line(s(R.string.vi_declared_bitrate), mbps(i.declaredVideoBitrate))
             }
             if (!i.scanned) sb.line("", s(R.string.vi_not_scanned))

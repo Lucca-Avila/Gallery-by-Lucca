@@ -310,6 +310,8 @@
     <string name="vi_menu">Informações para compressão</string>
     <string name="vi_title">Informações para compressão</string>
     <string name="vi_copy">Copiar</string>
+    <string name="vi_measure">Medir com precisão</string>
+    <string name="vi_measuring">Medindo com precisão… (pode levar alguns segundos)</string>
     <string name="vi_copied">Relatório copiado</string>
     <string name="vi_analyzing">Analisando…</string>
     <string name="vi_error">Não foi possível analisar o vídeo: %1$s</string>
@@ -333,7 +335,7 @@
     <string name="vi_declared_bitrate">Bitrate declarado no arquivo</string>
     <string name="vi_extra_video">Trilhas de vídeo extras</string>
     <string name="vi_no_video">Nenhuma trilha de vídeo</string>
-    <string name="vi_not_scanned">Arquivo grande (&gt; 1,5 GB): varredura pulada, valores estimados</string>
+    <string name="vi_not_scanned">Valores estimados (sem varrer o arquivo). Toque em "Medir com precisão" para medir.</string>
     <string name="vi_declared">declarado</string>
     <string name="vi_measured">medido</string>
     <string name="vi_estimated">estimado</string>

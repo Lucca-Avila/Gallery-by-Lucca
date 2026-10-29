@@ -2,6 +2,7 @@ package org.fossify.gallery.activities
 
 import android.app.WallpaperManager
 import android.content.Intent
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.os.Bundle
 import android.os.Handler
@@ -198,6 +199,13 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
     override fun onStart() {
         super.onStart()
         mTempShowHiddenHandler.removeCallbacksAndMessages(null)
+    }
+
+    /** Sem recriar a tela ao girar (a seleção e o diálogo de compressão permanecem): refaz só o número de colunas. */
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        setupLayoutManager()
+        handleGridSpacing()
     }
 
     override fun onResume() {

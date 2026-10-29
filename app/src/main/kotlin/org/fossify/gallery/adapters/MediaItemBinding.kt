@@ -18,6 +18,8 @@ interface MediaItemBinding {
     val mediumName: TextView
     val videoDuration: TextView?
     val mediumSize: TextView?
+    /** Selo "q40" das compressões; só na lista de vídeos. */
+    val mediumBadge: TextView?
     val mediumCheck: ImageView
     val mediumThumbnail: MySquareImageView
 }
@@ -31,6 +33,7 @@ class PhotoListMediaItemBinding(val binding: PhotoItemListBinding) : MediaItemBi
     override val mediumName: TextView = binding.mediumName
     override val videoDuration: TextView? = null
     override val mediumSize: TextView? = binding.mediumSize
+    override val mediumBadge: TextView? = null
     override val mediumCheck: ImageView = binding.mediumCheck
     override val mediumThumbnail: MySquareImageView = binding.mediumThumbnail
 }
@@ -46,6 +49,7 @@ class PhotoGridMediaItemBinding(val binding: PhotoItemGridBinding) : MediaItemBi
     override val mediumName: TextView = binding.mediumName
     override val videoDuration: TextView? = null
     override val mediumSize: TextView? = null
+    override val mediumBadge: TextView? = null
     override val mediumCheck: ImageView = binding.mediumCheck
     override val mediumThumbnail: MySquareImageView = binding.mediumThumbnail
 }
@@ -61,6 +65,7 @@ class VideoListMediaItemBinding(val binding: VideoItemListBinding) : MediaItemBi
     override val mediumName: TextView = binding.mediumName
     override val videoDuration: TextView = binding.videoDuration
     override val mediumSize: TextView? = binding.mediumSize
+    override val mediumBadge: TextView? = binding.mediumCompBadge
     override val mediumCheck: ImageView = binding.mediumCheck
     override val mediumThumbnail: MySquareImageView = binding.mediumThumbnail
 }
@@ -76,6 +81,7 @@ class VideoGridMediaItemBinding(val binding: VideoItemGridBinding) : MediaItemBi
     override val mediumName: TextView = binding.mediumName
     override val videoDuration: TextView = binding.videoDuration
     override val mediumSize: TextView? = null
+    override val mediumBadge: TextView? = null
     override val mediumCheck: ImageView = binding.mediumCheck
     override val mediumThumbnail: MySquareImageView = binding.mediumThumbnail
 }

@@ -7,7 +7,7 @@ import androidx.media3.common.util.UnstableApi
 import org.fossify.commons.extensions.formatSize
 import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.gallery.R
-import org.fossify.gallery.compression.analyzer.VideoAnalyzer
+import org.fossify.gallery.compression.analyzer.VideoInfoCache
 import org.fossify.gallery.compression.analyzer.VideoInfo
 import org.fossify.gallery.compression.engine.CompressionException
 import org.fossify.gallery.compression.engine.CompressionPipeline
@@ -164,7 +164,7 @@ class QueueRunner(context: Context, private val callbacks: Callbacks) {
     private fun analyze(item: QueueItem): VideoInfo {
         val file = File(item.path)
         if (!file.exists()) throw CompressionException(context.getString(R.string.cmp_q_original_missing))
-        val info = VideoAnalyzer.analyze(context, Uri.fromFile(file))
+        val info = VideoInfoCache.analyze(context, item.path, Uri.fromFile(file))
         val decoder = info.videoDecoder
         if (info.videoMime == null || (decoder != null && !decoder.supported)) {
             throw CompressionException(context.getString(R.string.cmp_err_no_decoder, info.videoMime ?: context.getString(R.string.cmp_unknown)))

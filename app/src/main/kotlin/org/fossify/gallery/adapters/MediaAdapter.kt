@@ -51,6 +51,7 @@ import org.fossify.commons.models.FileDirItem
 import org.fossify.commons.views.MyRecyclerView
 import org.fossify.gallery.R
 import org.fossify.gallery.compression.ui.CompressFlow
+import org.fossify.gallery.compression.ui.CompressedName
 import org.fossify.gallery.compression.analyzer.VideoInfoDialog
 import org.fossify.gallery.activities.ViewPagerActivity
 import org.fossify.gallery.databinding.PhotoItemGridBinding
@@ -723,6 +724,13 @@ class MediaAdapter(
                     text = medium.size.formatSize()
                     setTextColor(textColor)
                 }
+            }
+
+            mediumBadge?.apply {
+                val badge = if (isListViewType) CompressedName.badge(medium.name) else null
+                beVisibleIf(badge != null)
+                text = badge
+                setTextColor(textColor)
             }
 
             val showVideoDuration = medium.isVideo() && config.showThumbnailVideoDuration

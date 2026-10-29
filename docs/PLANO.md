@@ -39,6 +39,15 @@
 - [x] Modo lista: check de seleção sobre o canto superior esquerdo da miniatura, que escurece quando selecionada.
 - [x] Menu de três pontos da seleção: "Girar", "Copiar para", "Criar atalho" e "Definir como" escondidos no código (XML intacto); "Comprimir" e "Informações para compressão" no topo.
 
+## Parte 1: Análise de vídeo mais rápida e robusta (concluída)
+- [x] Cache de análise por arquivo (caminho + tamanho + data de modificação + formato + versão do sistema) no banco da fila (`video_info_cache`, migração 2→3 testada com a fila populada).
+- [x] Fila única de análise (`VideoInfoCache`): independe da tela, sem repetir o mesmo arquivo; fechar o diálogo de opções ou o de informações não cancela nem perde o resultado.
+- [x] Análise padrão por estimativa: bitrate = tamanho × 8 ÷ duração menos o áudio (marcado como estimado); fps declarado ou, se ausente ou acima de 61, medido nos primeiros 30 s. Sem o limite de 1,5 GB. Validado em 4 vídeos: erro de bitrate até 0,4% e de fps até 0,1%.
+- [x] Botão "Medir com precisão" em "Informações para compressão": varredura completa cancelável, substitui os valores estimados no cache.
+- [x] Rotação: `MediaActivity` não é mais recriada (configChanges + `onConfigurationChanged`); a seleção e o diálogo permanecem e as colunas se ajustam.
+- [x] Modo lista: nome em até 2 linhas, cortado no meio com reticências e final preservado (`_comp_q<N>` e extensão); selo "q<N>" ao lado do tamanho.
+- Nota: a migração da 6b-2 (`position`, `preset`) passa a ser 3→4.
+
 ## Etapa 4: Complementos do preset "Inteligente"
 - [ ] Resolução padrão automática: >1080p -> 1080p; <=1080p mantém (hoje o padrão é manter a original e o usuário escolhe).
 - [ ] Escolha da trilha de áudio (hoje só a trilha padrão é mantida).

@@ -5,18 +5,38 @@ import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.media.MediaMetadataRetriever
 import android.net.Uri
+import android.os.SystemClock
+import android.util.Log
 
 object VideoAnalyzer {
-    // Above this size the full sample scan is skipped and bitrates are estimated.
-    const val MAX_SCAN_BYTES = 1_500_000_000L
+    private const val TAG = "VideoAnalyzer"
 
-    /** Blocking; call from a background thread. [isCancelled] is polled during the scan. */
-    fun analyze(context: Context, uri: Uri, isCancelled: () -> Boolean = { false }): VideoInfo {
+    /** Acima disto o fps declarado não é confiável e é medido. */
+    private const val MAX_TRUSTED_FPS = 61f
+
+    /** O fps ausente ou duvidoso é medido só nos primeiros segundos de vídeo. */
+    private const val FPS_PROBE_US = 30_000_000L
+
+    /**
+     * Blocking; call from a background thread. [isCancelled] is polled during the scans.
+     * Padrão ([precise] = false): bitrate estimado (tamanho ÷ duração menos o áudio) e fps declarado, ou medido em 30 s de vídeo.
+     * [precise] = true: varre todas as amostras e mede bitrates e fps (lento: segundos a dezenas de segundos).
+     */
+    fun analyze(context: Context, uri: Uri, isCancelled: () -> Boolean = { false }, precise: Boolean = false): VideoInfo {
         val retriever = MediaMetadataRetriever()
         val extractor = MediaExtractor()
+        val t0 = SystemClock.elapsedRealtime()
+        var decoderMs = 0L
+        // Mede só a checagem de codecs (a primeira chamada paga a criação da MediaCodecList).
+        fun <T> timedDecoder(block: () -> T): T {
+            val start = SystemClock.elapsedRealtime()
+            return block().also { decoderMs += SystemClock.elapsedRealtime() - start }
+        }
         try {
             retriever.setDataSource(context, uri)
+            val tRetriever = SystemClock.elapsedRealtime()
             extractor.setDataSource(context, uri, null)
+            val tOpened = SystemClock.elapsedRealtime()
 
             val containerMime = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_MIMETYPE)
             val durationMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
@@ -31,7 +51,8 @@ object VideoAnalyzer {
             val subIdx = mimes.indices.filter { mimes[it].startsWith("text/") || mimes[it].startsWith("application/") }
             val mainVideo = videoIdx.firstOrNull()
 
-            val shouldScan = fileSize in 1..MAX_SCAN_BYTES && durationMs > 0
+            val tFormat = SystemClock.elapsedRealtime()
+            val shouldScan = precise && fileSize > 0 && durationMs > 0
             val bytes = LongArray(formats.size)
             val samples = LongArray(formats.size)
             var scanDone = false
@@ -54,17 +75,18 @@ object VideoAnalyzer {
                 }
             }
 
+            val tScan = SystemClock.elapsedRealtime()
+
             fun declared(i: Int): Long? =
                 formats[i].takeIf { it.containsKey(MediaFormat.KEY_BIT_RATE) }?.getInteger(MediaFormat.KEY_BIT_RATE)?.toLong()?.takeIf { it > 0 }
 
-            fun bitrateOf(i: Int, estimateFallback: Long?): Bitrate? = when {
+            fun audioBitrate(i: Int): Bitrate = when {
                 scanDone && bytes[i] > 0 -> Bitrate(bytes[i] * 8000L / durationMs, ValueSource.MEASURED)
                 declared(i) != null -> Bitrate(declared(i)!!, ValueSource.DECLARED)
-                estimateFallback != null && estimateFallback > 0 -> Bitrate(estimateFallback, ValueSource.ESTIMATED)
-                else -> null
+                else -> Bitrate(guessAudioBitrate(formats[i].intOrNull(MediaFormat.KEY_CHANNEL_COUNT)), ValueSource.ESTIMATED)
             }
 
-            val audioDeclaredSum = audioIdx.sumOf { declared(it) ?: 0L }
+            val audioBitrates = audioIdx.associateWith { audioBitrate(it) }
             val audio = audioIdx.map { i ->
                 val f = formats[i]
                 AudioTrackInfo(
@@ -72,8 +94,8 @@ object VideoAnalyzer {
                     language = f.stringOrNull(MediaFormat.KEY_LANGUAGE),
                     channels = f.intOrNull(MediaFormat.KEY_CHANNEL_COUNT),
                     sampleRate = f.intOrNull(MediaFormat.KEY_SAMPLE_RATE),
-                    bitrate = bitrateOf(i, null),
-                    decodable = DecoderCheck.audioDecoder(mimes[i]).supported,
+                    bitrate = audioBitrates[i],
+                    decodable = timedDecoder { DecoderCheck.audioDecoder(mimes[i]) }.supported,
                 )
             }
             val subtitles = subIdx.map { SubtitleTrackInfo(mimes[it], formats[it].stringOrNull(MediaFormat.KEY_LANGUAGE)) }
@@ -100,15 +122,45 @@ object VideoAnalyzer {
                     val declaredFps = vf?.takeIf { it.containsKey(MediaFormat.KEY_FRAME_RATE) }
                         ?.let { runCatching { it.getInteger(MediaFormat.KEY_FRAME_RATE).toFloat() }.getOrNull() ?: it.getFloat(MediaFormat.KEY_FRAME_RATE) }
                         ?: retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_CAPTURE_FRAMERATE)?.toFloatOrNull()
-                    if (declaredFps != null && declaredFps > 0) {
+                    if (declaredFps != null && declaredFps > 0 && declaredFps <= MAX_TRUSTED_FPS) {
                         fps = declaredFps
                         fpsSource = ValueSource.DECLARED
+                    } else {
+                        val probed = measureFps(extractor, mainVideo, isCancelled)
+                        if (probed != null) {
+                            fps = probed
+                            fpsSource = ValueSource.MEASURED
+                        } else if (declaredFps != null && declaredFps > 0) {
+                            fps = declaredFps
+                            fpsSource = ValueSource.DECLARED
+                        }
                     }
                 }
             }
 
-            val estimatedVideo = overall?.let { it - audioDeclaredSum }
-            val videoBitrate = mainVideo?.let { bitrateOf(it, estimatedVideo) }
+            val tFps = SystemClock.elapsedRealtime()
+            val audioDecoderMs = decoderMs
+            val audioSum = audioBitrates.values.sumOf { it.bps }
+            val videoBitrate = mainVideo?.let { v ->
+                when {
+                    scanDone && bytes[v] > 0 -> Bitrate(bytes[v] * 8000L / durationMs, ValueSource.MEASURED)
+                    overall != null && overall - audioSum > 0 -> Bitrate(overall - audioSum, ValueSource.ESTIMATED)
+                    declared(v) != null -> Bitrate(declared(v)!!, ValueSource.DECLARED)
+                    else -> null
+                }
+            }
+
+            val decoder = vMime?.let { timedDecoder { DecoderCheck.videoDecoder(it, width, height, fps, profile) } }
+            val hevc = timedDecoder { DecoderCheck.encoder(MediaFormat.MIMETYPE_VIDEO_HEVC) }
+            val avc = timedDecoder { DecoderCheck.encoder(MediaFormat.MIMETYPE_VIDEO_AVC) }
+            val total = SystemClock.elapsedRealtime() - t0
+            Log.i(
+                TAG,
+                "tempos de ${uri.lastPathSegment}: ${fileSize / 1_000_000} MB, ${durationMs / 1000} s, ${samples.sum()} amostras, varredura=$scanDone | " +
+                    "abrir=${tOpened - t0} ms (retriever ${tRetriever - t0}, extractor ${tOpened - tRetriever}) " +
+                    "formato=${tFormat - tOpened} ms varredura=${tScan - tFormat} ms fps30s=${tFps - tScan - audioDecoderMs} ms decodificador=$decoderMs ms total=$total ms | " +
+                    "modo=${if (precise) "preciso" else "estimativa"} bitrate=${videoBitrate?.bps}(${videoBitrate?.source}) fps=$fps($fpsSource)"
+            )
 
             return VideoInfo(
                 containerMime = containerMime,
@@ -132,15 +184,39 @@ object VideoAnalyzer {
                 extraVideoTracks = (videoIdx.size - 1).coerceAtLeast(0),
                 audio = audio,
                 subtitles = subtitles,
-                videoDecoder = vMime?.let { DecoderCheck.videoDecoder(it, width, height, fps, profile) },
-                hevcEncoder = DecoderCheck.encoder(MediaFormat.MIMETYPE_VIDEO_HEVC),
-                avcEncoder = DecoderCheck.encoder(MediaFormat.MIMETYPE_VIDEO_AVC),
+                videoDecoder = decoder,
+                hevcEncoder = hevc,
+                avcEncoder = avc,
                 scanned = scanDone,
             )
         } finally {
             extractor.release()
             retriever.release()
         }
+    }
+
+    /** Sem bitrate declarado: um palpite por número de canais (AAC costuma ter ~64 kbps por canal). */
+    private fun guessAudioBitrate(channels: Int?): Long = ((channels ?: 2) * 64_000L).coerceIn(96_000L, 448_000L)
+
+    /** fps pelos primeiros [FPS_PROBE_US] da trilha de vídeo: amostras ÷ intervalo entre a primeira e a última. */
+    private fun measureFps(extractor: MediaExtractor, videoTrack: Int, isCancelled: () -> Boolean): Float? {
+        extractor.selectTrack(videoTrack)
+        var count = 0
+        var first = -1L
+        var min = Long.MAX_VALUE
+        var max = Long.MIN_VALUE
+        while (extractor.sampleTrackIndex >= 0) {
+            val time = extractor.sampleTime
+            if (first < 0) first = time
+            if (time - first > FPS_PROBE_US) break
+            count++
+            if (time < min) min = time
+            if (time > max) max = time
+            if (count % 1000 == 0 && isCancelled()) return null
+            if (!extractor.advance()) break
+        }
+        extractor.unselectTrack(videoTrack)
+        return if (count > 1 && max > min) (count - 1) * 1_000_000f / (max - min) else null
     }
 
     private fun fileSize(context: Context, uri: Uri): Long = try {

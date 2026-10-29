@@ -8,10 +8,12 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 /** Banco próprio da fila (compression_queue.db), separado do GalleryDatabase do Fossify. */
-@Database(entities = [QueueItem::class], version = 2, exportSchema = false)
+@Database(entities = [QueueItem::class, VideoInfoEntry::class], version = 3, exportSchema = false)
 abstract class QueueDatabase : RoomDatabase() {
 
     abstract fun QueueDao(): QueueDao
+
+    abstract fun VideoInfoDao(): VideoInfoDao
 
     companion object {
         @Volatile
@@ -30,12 +32,22 @@ abstract class QueueDatabase : RoomDatabase() {
             }
         }
 
+        /** Cache de análise de vídeo; a tabela da fila não é tocada. */
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `video_info_cache` (`path` TEXT NOT NULL, `size` INTEGER NOT NULL, `modified` INTEGER NOT NULL, " +
+                        "`schema_version` INTEGER NOT NULL, `build` TEXT NOT NULL, `json` TEXT NOT NULL, `cached_at` INTEGER NOT NULL, PRIMARY KEY(`path`))"
+                )
+            }
+        }
+
         fun getInstance(context: Context): QueueDatabase {
             if (db == null) {
                 synchronized(QueueDatabase::class) {
                     if (db == null) {
                         db = Room.databaseBuilder(context.applicationContext, QueueDatabase::class.java, "compression_queue.db")
-                            .addMigrations(MIGRATION_1_2)
+                            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                             .build()
                     }
                 }

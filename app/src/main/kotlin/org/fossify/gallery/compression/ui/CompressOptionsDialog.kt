@@ -14,7 +14,7 @@ import org.fossify.commons.extensions.setupDialogStuff
 import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.gallery.BuildConfig
 import org.fossify.gallery.R
-import org.fossify.gallery.compression.analyzer.VideoAnalyzer
+import org.fossify.gallery.compression.analyzer.VideoInfoCache
 import org.fossify.gallery.compression.analyzer.VideoInfo
 import org.fossify.gallery.compression.engine.CompressionOptions
 import org.fossify.gallery.compression.engine.CompressionOutput
@@ -61,8 +61,9 @@ class CompressOptionsDialog(
     private var speed = QueueEta.DEFAULT_SPEED
     private var updating = false
 
+    /** O diálogo foi fechado: para de atualizar a tela, mas a análise em andamento continua. */
     @Volatile
-    private var cancelled = false
+    private var dismissed = false
 
     init {
         activity.getAlertDialogBuilder()
@@ -71,7 +72,8 @@ class CompressOptionsDialog(
             .apply {
                 activity.setupDialogStuff(binding.root, this, if (multi) R.string.cmp_title_multi else R.string.cmp_title) { alertDialog ->
                     dialog = alertDialog
-                    alertDialog.setOnDismissListener { cancelled = true }
+                    alertDialog.setCanceledOnTouchOutside(false)
+                    alertDialog.setOnDismissListener { dismissed = true }
                     alertDialog.getButton(AlertDialog.BUTTON_POSITIVE).apply {
                         isEnabled = false
                         setOnClickListener { confirm() }
@@ -81,17 +83,29 @@ class CompressOptionsDialog(
             }
     }
 
+    /**
+     * A análise roda em [VideoInfoCache], fora desta tela: fechar o diálogo (voltar, Cancelar, girar a tela) não a interrompe, e o
+     * resultado fica no cache para a próxima vez. Aqui só se espera pelos resultados e se atualiza a interface enquanto o diálogo existir.
+     */
     private fun analyze() {
         ensureBackgroundThread {
             val ok = mutableListOf<Pair<String, VideoInfo>>()
             val failed = mutableListOf<String>()
             var lastError = ""
-            paths.forEachIndexed { i, path ->
-                if (cancelled) return@ensureBackgroundThread
+            val pending = paths.map { path ->
+                val future = try {
+                    val uri = activity.getFinalUriFromPath(path, BuildConfig.APPLICATION_ID) ?: throw IllegalStateException("uri")
+                    VideoInfoCache.submit(activity, path, uri)
+                } catch (e: Exception) {
+                    null
+                }
+                path to future
+            }
+            pending.forEachIndexed { i, (path, future) ->
+                if (dismissed) return@ensureBackgroundThread
                 if (multi) activity.runOnUiThread { binding.compressMessage.text = activity.getString(R.string.cmp_analyzing_n, i + 1, paths.size) }
                 try {
-                    val uri = activity.getFinalUriFromPath(path, BuildConfig.APPLICATION_ID) ?: throw IllegalStateException("uri")
-                    val info = VideoAnalyzer.analyze(activity, uri) { cancelled }
+                    val info = VideoInfoCache.await(future ?: throw IllegalStateException("uri")) { !dismissed } ?: return@ensureBackgroundThread
                     val decoder = info.videoDecoder
                     if (decoder != null && !decoder.supported) {
                         lastError = activity.getString(R.string.cmp_err_no_decoder, info.videoMime ?: activity.getString(R.string.cmp_unknown))
@@ -100,12 +114,14 @@ class CompressOptionsDialog(
                         ok.add(path to info)
                     }
                 } catch (e: Exception) {
-                    lastError = activity.getString(R.string.vi_error, e.message ?: e.javaClass.simpleName)
+                    val cause = e.cause ?: e
+                    lastError = activity.getString(R.string.vi_error, cause.message ?: cause.javaClass.simpleName)
                     failed.add(File(path).name)
                 }
             }
-            if (cancelled) return@ensureBackgroundThread
+            if (dismissed) return@ensureBackgroundThread
             activity.runOnUiThread {
+                if (dismissed) return@runOnUiThread
                 when {
                     ok.isEmpty() && !multi -> binding.compressMessage.text = lastError
                     ok.isEmpty() -> binding.compressMessage.text = activity.getString(R.string.cmp_multi_none_readable, failed.joinToString(", "))
