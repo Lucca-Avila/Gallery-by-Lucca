@@ -34,6 +34,7 @@
 - [x] Mostrar progresso (tela ligada), cancelamento e resultado (tamanho antes/depois, tempo, bitrate pedido x real, nome final).
 
 ## Etapa 4: Complementos do preset "Inteligente"
+- [ ] Resolução padrão automática: >1080p -> 1080p; <=1080p mantém (hoje o padrão é manter a original e o usuário escolhe).
 - [ ] Escolha da trilha de áudio (hoje só a trilha padrão é mantida).
 - [ ] Avisar sobre legendas descartadas.
 - [ ] Descartar o resultado se ficar maior que o original; avisar.
@@ -48,6 +49,7 @@
 - [ ] Serviço em primeiro plano + notificação de progresso.
 - [ ] Seleção múltipla na galeria -> "Comprimir na fila".
 - [ ] Tela da fila (ver, remover, reordenar, cancelar, trocar destino de um item).
+- [ ] Pular automaticamente, ou perguntar antes, vídeos já eficientes (aviso de vídeo já eficiente) durante o processamento da fila.
 - [ ] Testar com tela apagada e com vários vídeos.
 
 ## Etapa 7: Marca de "já comprimido"

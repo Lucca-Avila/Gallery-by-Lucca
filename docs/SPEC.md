@@ -60,9 +60,10 @@ Os vídeos NÃO são gravados no celular, então as specs são imprevisíveis. O
 - A detecção de "já comprimido" deve considerar três sinais: o sufixo `_comp_q<N>` no nome, a marca nos metadados do MP4 e o registro no banco.
 
 ### 5. Estimativa de tamanho (menos importante)
-- Parcialmente feito na Etapa 3 (estimativa por preset). Falta o lado a lado. Antes de comprimir, mostrar: "Original: X MB | Resolução original: ~Y MB | 720p: ~Z MB".
-- Cálculo: (bitrate de vídeo + bitrate de áudio) x duração. Precisão aproximada é suficiente.
-- Com origem variada, a estimativa também serve para mostrar quando a economia é pequena (apoia a regra de pular vídeos que já estão eficientes).
+- Já existe (Etapa 3): estimativa por preset na tela de compressão, "≈ X MB (−Y%)", para a resolução escolhida e atualizada ao mudá-la.
+- Cálculo: (bitrate de vídeo + bitrate de áudio) × duração ÷ 8, com o bitrate de áudio resultante das regras de áudio. Precisão aproximada é suficiente (o encoder pode variar cerca de ±20%).
+- Falta (Etapa 8): mostrar lado a lado "Original: X MB | Resolução original: ~Y MB | 720p: ~Z MB".
+- Com origem variada, a estimativa também apoia o aviso "Já está bem comprimido; ganho pequeno" (já existe). Pular automaticamente esses vídeos é da fila (Etapa 6).
 
 ## Fora do escopo (v1)
 - iOS, desktop, publicação na Play Store, nuvem, login.
