@@ -195,13 +195,15 @@ class MediaAdapter(
             findItem(R.id.cab_move_to).isVisible = !isInRecycleBin
             findItem(R.id.cab_open_with).isVisible = isOneItemSelected
             findItem(R.id.cab_edit).isVisible = isOneItemSelected
-            findItem(R.id.cab_set_as).isVisible = isOneItemSelected
+            findItem(R.id.cab_set_as).isVisible = false
             findItem(R.id.cab_resize).isVisible = canResize(selectedItems)
             findItem(R.id.cab_compress).isVisible = isOneItemSelected && selectedItems.first().isVideo() && !isInRecycleBin
             findItem(R.id.cab_compress_info).isVisible = isOneItemSelected && selectedItems.first().isVideo() && !isInRecycleBin
             findItem(R.id.cab_confirm_selection).isVisible = isAGetIntent && allowMultiplePicks && selectedKeys.isNotEmpty()
             findItem(R.id.cab_restore_recycle_bin_files).isVisible = selectedPaths.all { it.startsWith(activity.recycleBinPath) }
-            findItem(R.id.cab_create_shortcut).isVisible = isOneItemSelected
+            findItem(R.id.cab_create_shortcut).isVisible = false
+            findItem(R.id.cab_rotate).isVisible = false
+            findItem(R.id.cab_copy_to).isVisible = false
 
             checkHideBtnVisibility(this, selectedItems)
             checkFavoriteBtnVisibility(this, selectedItems)
@@ -249,9 +251,13 @@ class MediaAdapter(
 
     override fun getItemKeyPosition(key: Int) = media.indexOfFirst { (it as? Medium)?.path?.hashCode() == key }
 
-    override fun onActionModeCreated() {}
+    override fun onActionModeCreated() {
+        listener?.onSelectionModeChanged(true)
+    }
 
-    override fun onActionModeDestroyed() {}
+    override fun onActionModeDestroyed() {
+        listener?.onSelectionModeChanged(false)
+    }
 
     override fun onViewRecycled(holder: ViewHolder) {
         super.onViewRecycled(holder)
@@ -636,8 +642,13 @@ class MediaAdapter(
         if (thumbnailItems.hashCode() != currentMediaHash) {
             currentMediaHash = thumbnailItems.hashCode()
             media = thumbnailItems
+            // a refresh must never clear the selection; only drop items that no longer exist
+            val existingKeys = media.mapNotNull { (it as? Medium)?.path?.hashCode() }.toSet()
+            selectedKeys.retainAll(existingKeys)
             notifyDataSetChanged()
-            finishActMode()
+            if (selectedKeys.isEmpty()) {
+                finishActMode()
+            }
         }
     }
 
@@ -706,6 +717,14 @@ class MediaAdapter(
             mediumName.text = medium.name
             mediumName.tag = medium.path
 
+            mediumSize?.apply {
+                beVisibleIf(isListViewType)
+                if (isListViewType) {
+                    text = medium.size.formatSize()
+                    setTextColor(textColor)
+                }
+            }
+
             val showVideoDuration = medium.isVideo() && config.showThumbnailVideoDuration
             if (showVideoDuration) {
                 videoDuration?.text = medium.videoDuration.getFormattedDuration()
@@ -723,6 +742,11 @@ class MediaAdapter(
 
             if (isListViewType) {
                 mediaItemHolder.isSelected = isSelected
+                if (isSelected) {
+                    mediumThumbnail.setColorFilter(0x66000000)
+                } else {
+                    mediumThumbnail.clearColorFilter()
+                }
             }
 
             var path = medium.path

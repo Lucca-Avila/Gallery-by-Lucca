@@ -6,6 +6,7 @@ import org.fossify.commons.helpers.FAVORITES
 import org.fossify.commons.helpers.SORT_BY_DATE_MODIFIED
 import org.fossify.commons.helpers.SORT_BY_DATE_TAKEN
 import org.fossify.commons.helpers.SORT_BY_SIZE
+import org.fossify.commons.helpers.VIEW_TYPE_LIST
 import org.fossify.gallery.extensions.config
 import org.fossify.gallery.extensions.getFavoritePaths
 import org.fossify.gallery.helpers.*
@@ -31,7 +32,9 @@ class GetMediaAsynctask(
             folderGrouping and GROUP_BY_LAST_MODIFIED_DAILY != 0 ||
             folderGrouping and GROUP_BY_LAST_MODIFIED_MONTHLY != 0
 
-        val getProperFileSize = folderSorting and SORT_BY_SIZE != 0
+        // list view shows the file size, so it must be filled even when not sorting by size
+        val getProperFileSize = folderSorting and SORT_BY_SIZE != 0 ||
+            context.config.getFolderViewType(pathToUse) == VIEW_TYPE_LIST
         val favoritePaths = context.getFavoritePaths()
         val getVideoDurations = context.config.showThumbnailVideoDuration
         val lastModifieds = if (getProperLastModified) mediaFetcher.getLastModifieds() else HashMap()

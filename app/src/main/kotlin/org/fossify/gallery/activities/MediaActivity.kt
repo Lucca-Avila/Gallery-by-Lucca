@@ -130,6 +130,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
     private var mShowLoadingIndicator = true
     private var mWasFullscreenViewOpen = false
     private var mLastSearchedText = ""
+    private var mIsSelecting = false
     private var mLatestMediaId = 0L
     private var mLatestMediaDateId = 0L
     private var mLastMediaHandler = Handler()
@@ -239,7 +240,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         refreshMenuItems()
 
         binding.mediaFastscroller.updateColors(primaryColor)
-        binding.mediaRefreshLayout.isEnabled = config.enablePullToRefresh
+        updatePullToRefresh()
         getMediaAdapter()?.apply {
             dateFormat = config.dateFormat
             timeFormat = getTimeFormat()
@@ -368,13 +369,14 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         binding.mediaMenu.onSearchTextChangedListener = { text ->
             mLastSearchedText = text
             searchQueryChanged(text)
-            binding.mediaRefreshLayout.isEnabled = text.isEmpty() && config.enablePullToRefresh
+            updatePullToRefresh()
         }
 
         binding.mediaMenu.requireToolbar().setOnMenuItemClickListener { menuItem ->
             when (menuItem.itemId) {
                 R.id.sort -> showSortingDialog()
                 R.id.filter -> showFilterMediaDialog()
+                R.id.refresh_media -> getMedia()
                 R.id.empty_recycle_bin -> emptyRecycleBin()
                 R.id.empty_disable_recycle_bin -> emptyAndDisableRecycleBin()
                 R.id.restore_all_files -> restoreAllFiles()
@@ -1112,6 +1114,16 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
 
     override fun refreshItems() {
         getMedia()
+    }
+
+    override fun onSelectionModeChanged(isSelecting: Boolean) {
+        mIsSelecting = isSelecting
+        updatePullToRefresh()
+    }
+
+    private fun updatePullToRefresh() {
+        // pull-to-refresh is off on media screens: it fired during long-press and cancelled the selection
+        binding.mediaRefreshLayout.isEnabled = false
     }
 
     override fun selectedPaths(paths: ArrayList<String>) {

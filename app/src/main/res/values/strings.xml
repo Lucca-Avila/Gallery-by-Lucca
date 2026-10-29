@@ -353,6 +353,7 @@
     <string name="vi_software">software</string>
     <string name="vi_profile_unsupported">profile não suportado</string>
     <!-- Compressão de vídeo -->
+    <string name="refresh_media">Atualizar</string>
     <string name="cmp_menu">Comprimir</string>
     <string name="cmp_title">Comprimir vídeo</string>
     <string name="cmp_start">Comprimir</string>

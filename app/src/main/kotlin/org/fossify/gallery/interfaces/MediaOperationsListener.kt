@@ -11,4 +11,6 @@ interface MediaOperationsListener {
     fun selectedPaths(paths: ArrayList<String>)
 
     fun updateMediaGridDecoration(media: ArrayList<ThumbnailItem>)
+
+    fun onSelectionModeChanged(isSelecting: Boolean) {}
 }

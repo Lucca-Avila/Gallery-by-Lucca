@@ -22,6 +22,16 @@
         android:title="@string/share"
         app:showAsAction="always" />
     <item
+        android:id="@+id/cab_compress"
+        android:showAsAction="never"
+        android:title="@string/cmp_menu"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/cab_compress_info"
+        android:showAsAction="never"
+        android:title="@string/vi_menu"
+        app:showAsAction="never" />
+    <item
         android:id="@+id/cab_rotate"
         android:icon="@drawable/ic_rotate_right_vector"
         android:title="@string/rotate"
@@ -86,16 +96,6 @@
         android:id="@+id/cab_resize"
         android:showAsAction="never"
         android:title="@string/resize"
-        app:showAsAction="never" />
-    <item
-        android:id="@+id/cab_compress"
-        android:showAsAction="never"
-        android:title="@string/cmp_menu"
-        app:showAsAction="never" />
-    <item
-        android:id="@+id/cab_compress_info"
-        android:showAsAction="never"
-        android:title="@string/vi_menu"
         app:showAsAction="never" />
     <item
         android:id="@+id/cab_edit"

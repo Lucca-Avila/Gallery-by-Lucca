@@ -33,6 +33,12 @@
 - [x] Nome `<original>_comp_q<N>.mp4` (N = bpp real do alvo × 1000), `_2` etc. se já existir, sem empilhar sufixos antigos; nunca sobrescreve.
 - [x] Mostrar progresso (tela ligada), cancelamento e resultado (tamanho antes/depois, tempo, bitrate pedido x real, nome final).
 
+## Etapa 3.5: Ajustes de interface (concluída)
+- [x] Bug: puxar para atualizar disparava durante o toque longo e limpava a seleção. Agora fica desativado enquanto há seleção, e a atualização da lista nunca limpa a seleção (só remove itens que não existem mais). Não bastou (o dedo escorrega antes da seleção): puxar-para-atualizar desativado por completo nas telas de mídia; item "Atualizar" no menu de três pontos.
+- [x] Modo lista: tamanho do arquivo (do banco) abaixo do nome, à esquerda da duração. Só na lista, fotos e vídeos. O tamanho vinha 0 porque o MediaFetcher só o buscava ao ordenar por tamanho; agora também busca no modo lista (coluna SIZE do MediaStore, com File.length() de reserva).
+- [x] Modo lista: check de seleção sobre o canto superior esquerdo da miniatura, que escurece quando selecionada.
+- [x] Menu de três pontos da seleção: "Girar", "Copiar para", "Criar atalho" e "Definir como" escondidos no código (XML intacto); "Comprimir" e "Informações para compressão" no topo.
+
 ## Etapa 4: Complementos do preset "Inteligente"
 - [ ] Resolução padrão automática: >1080p -> 1080p; <=1080p mantém (hoje o padrão é manter a original e o usuário escolhe).
 - [ ] Escolha da trilha de áudio (hoje só a trilha padrão é mantida).
