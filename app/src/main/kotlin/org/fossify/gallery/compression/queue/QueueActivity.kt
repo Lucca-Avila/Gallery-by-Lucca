@@ -152,7 +152,8 @@ class QueueActivity : SimpleActivity() {
                 )
             )
         }
-        val waiting = items.filter { it.state == QueueItem.STATE_WAITING }
+        // Mesma ordem em que o runner os pega (QueueDao.firstWaiting).
+        val waiting = items.filter { it.state == QueueItem.STATE_WAITING }.sortedWith(compareBy<QueueItem> { it.position }.thenBy { it.id })
         if (waiting.isNotEmpty()) {
             rows.add(SectionRow("waiting", getString(R.string.cmp_q_section_waiting, waiting.size), null))
             waiting.forEach { rows.add(EntryRow(it, stateText(it), detailText(it))) }

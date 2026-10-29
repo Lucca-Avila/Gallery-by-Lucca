@@ -16,9 +16,6 @@ import org.fossify.gallery.BuildConfig
 import org.fossify.gallery.R
 import org.fossify.gallery.compression.analyzer.VideoInfoCache
 import org.fossify.gallery.compression.analyzer.VideoInfo
-import org.fossify.gallery.compression.engine.CompressionOptions
-import org.fossify.gallery.compression.engine.CompressionOutput
-import org.fossify.gallery.compression.engine.Destination
 import org.fossify.gallery.compression.engine.CompressionPlanner
 import org.fossify.gallery.compression.engine.CompressionPlanner.Preset
 import org.fossify.gallery.compression.queue.QueueEta
@@ -29,17 +26,6 @@ import org.fossify.gallery.extensions.config
 import java.io.File
 import java.util.Locale
 import kotlin.math.roundToInt
-
-/** Um vídeo com as opções já resolvidas, pronto para entrar na fila. */
-data class PlannedVideo(
-    val path: String,
-    val info: VideoInfo,
-    val options: CompressionOptions,
-    val destination: Destination,
-    val estimatedSize: Long,
-    /** O alvo passa do teto de 80% ou o original já está em codec eficiente (ganho pequeno). */
-    val efficient: Boolean,
-)
 
 /** Opções de compressão de um ou vários vídeos; com vários, as mesmas escolhas valem para cada um e a estimativa é somada. */
 @OptIn(UnstableApi::class)
@@ -235,7 +221,7 @@ class CompressOptionsDialog(
             if (custom && !sliderTouched) resetSliderToPreset(Preset.BALANCED)
             refreshTarget()
         }
-        binding.compressQualitySeek.min = SEEK_MIN
+        binding.compressQualitySeek.min = RulePlanner.MIN_CUSTOM_PCT
         binding.compressQualitySeek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 if (fromUser && !updating) {
@@ -258,30 +244,24 @@ class CompressOptionsDialog(
 
     private fun resetSliderToPreset(preset: Preset) {
         val info = info ?: return
-        val ref = CompressionPlanner.referenceBitrate(info)
-        val size = CompressionPlanner.outputSize(info, selectedShortSide())
-        val pct = (CompressionPlanner.presetBitrate(info, size, preset) * 100.0 / ref).roundToInt().coerceIn(SEEK_MIN, 100)
         updating = true
-        binding.compressQualitySeek.progress = pct
+        binding.compressQualitySeek.progress = RulePlanner.presetPct(info, selectedShortSide(), preset)
         updating = false
     }
 
-    private fun customBitrate(info: VideoInfo = this.info!!): Long {
-        val ref = CompressionPlanner.referenceBitrate(info)
-        val pct = binding.compressQualitySeek.progress.coerceAtLeast(SEEK_MIN)
-        return CompressionPlanner.clampBitrate((ref * pct / 100.0).toLong(), ref)
-    }
-
-    private fun currentBitrate(info: VideoInfo = this.info!!): Long {
-        val preset = presetOfSelection() ?: return customBitrate(info)
-        return CompressionPlanner.presetBitrate(info, CompressionPlanner.outputSize(info, selectedShortSide()), preset)
-    }
-
-    /** Pedido "cru" usado para o aviso de eficiência: o do preset (antes do teto) ou o do slider. */
-    private fun requestedForWarning(info: VideoInfo = this.info!!): Long {
-        val preset = presetOfSelection() ?: return customBitrate(info)
-        return CompressionPlanner.rawBitrate(info, CompressionPlanner.outputSize(info, selectedShortSide()), preset.bpp)
-    }
+    /** Regra com as escolhas atuais da tela. O destino e o "depois de comprimir" só são lidos ao confirmar. */
+    private fun currentRule(
+        preset: Preset? = presetOfSelection(),
+        destMode: Int = CompressionPrefs.DEST_SAME,
+        after: Int = CompressionPrefs.AFTER_KEEP,
+    ) = CompressRule(
+        preset = preset,
+        customPct = binding.compressQualitySeek.progress,
+        shortSide = selectedShortSide(),
+        destMode = destMode,
+        customPath = prefs.customPath,
+        after = after,
+    )
 
     private fun refreshTarget() {
         val info = info ?: return
@@ -293,19 +273,20 @@ class CompressOptionsDialog(
         val size = CompressionPlanner.outputSize(info, selectedShortSide())
         val fps = CompressionPlanner.fpsOf(info)
 
-        fun line(nameRes: Int, bitrate: Long, preset: Preset?): String {
-            val q = CompressionPlanner.qualityTag(bitrate, size, fps)
-            val est = CompressionPlanner.estimateSize(info, bitrate, preset)
+        fun line(nameRes: Int, preset: Preset?): String {
+            val rule = currentRule(preset)
+            val q = CompressionPlanner.qualityTag(RulePlanner.bitrate(info, rule), size, fps)
+            val est = RulePlanner.estimateSize(info, rule)
             val delta = if (info.fileSize > 0) ((est - info.fileSize) * 100.0 / info.fileSize).roundToInt() else 0
             val pct = if (delta <= 0) "−${-delta}%" else "+$delta%"
             return activity.getString(R.string.cmp_preset_line, activity.getString(nameRes), est.formatSize(), pct, q)
         }
-        binding.compressPresetQuality.text = line(R.string.cmp_preset_quality, CompressionPlanner.presetBitrate(info, size, Preset.QUALITY), Preset.QUALITY)
-        binding.compressPresetBalanced.text = line(R.string.cmp_preset_balanced, CompressionPlanner.presetBitrate(info, size, Preset.BALANCED), Preset.BALANCED)
-        binding.compressPresetSaving.text = line(R.string.cmp_preset_saving, CompressionPlanner.presetBitrate(info, size, Preset.MAX_SAVING), Preset.MAX_SAVING)
-        binding.compressPresetCustom.text = line(R.string.cmp_preset_custom, customBitrate(), null)
+        binding.compressPresetQuality.text = line(R.string.cmp_preset_quality, Preset.QUALITY)
+        binding.compressPresetBalanced.text = line(R.string.cmp_preset_balanced, Preset.BALANCED)
+        binding.compressPresetSaving.text = line(R.string.cmp_preset_saving, Preset.MAX_SAVING)
+        binding.compressPresetCustom.text = line(R.string.cmp_preset_custom, null)
 
-        val bitrate = currentBitrate()
+        val bitrate = RulePlanner.bitrate(info, currentRule())
         binding.compressTargetInfo.text = activity.getString(
             R.string.cmp_target_info,
             formatBitrate(bitrate),
@@ -313,16 +294,16 @@ class CompressOptionsDialog(
             String.format(Locale.US, "%.3f", CompressionPlanner.bitsPerPixel(bitrate, size, fps))
         ) + audioInfoLine(info)
         binding.compressEfficientWarning.visibility =
-            if (CompressionPlanner.isAlreadyEfficient(info, requestedForWarning())) android.view.View.VISIBLE else android.view.View.GONE
+            if (RulePlanner.isEfficient(info, currentRule())) android.view.View.VISIBLE else android.view.View.GONE
         refreshEta()
     }
 
     /** Tempo estimado de compressão dos vídeos escolhidos, com a resolução de saída atual. */
     private fun refreshEta() {
         if (videos.isEmpty()) return
+        val rule = currentRule()
         val seconds = videos.sumOf { (_, info) ->
-            val shortSide = selectedShortSide()?.takeIf { it in CompressionPlanner.resolutionChoices(info) }
-            val size = CompressionPlanner.outputSize(info, shortSide)
+            val size = CompressionPlanner.outputSize(info, RulePlanner.effectiveShortSide(info, rule))
             (QueueEta.pixels(size.width, size.height, CompressionPlanner.fpsOf(info), info.durationMs) ?: 0.0) / speed
         }
         binding.compressEta.text = activity.getString(R.string.cmp_eta_dialog, QueueEta.formatDuration(activity, Math.round(seconds)))
@@ -332,11 +313,8 @@ class CompressOptionsDialog(
     private fun refreshTargetMulti() {
         val total = videos.sumOf { it.second.fileSize }
         fun line(nameRes: Int, preset: Preset?): String {
-            val est = videos.sumOf { (_, info) ->
-                val bitrate = preset?.let { CompressionPlanner.presetBitrate(info, CompressionPlanner.outputSize(info, selectedShortSide()), it) }
-                    ?: customBitrate(info)
-                CompressionPlanner.estimateSize(info, bitrate, preset)
-            }
+            val rule = currentRule(preset)
+            val est = videos.sumOf { (_, info) -> RulePlanner.estimateSize(info, rule) }
             val delta = if (total > 0) ((est - total) * 100.0 / total).roundToInt() else 0
             val pct = if (delta <= 0) "−${-delta}%" else "+$delta%"
             return activity.getString(R.string.cmp_preset_line_multi, activity.getString(nameRes), est.formatSize(), pct)
@@ -347,7 +325,8 @@ class CompressOptionsDialog(
         binding.compressPresetCustom.text = line(R.string.cmp_preset_custom, null)
         binding.compressTargetInfo.text = activity.getString(R.string.cmp_target_multi)
 
-        val efficient = videos.count { CompressionPlanner.isAlreadyEfficient(it.second, requestedForWarning(it.second)) }
+        val rule = currentRule()
+        val efficient = videos.count { RulePlanner.isEfficient(it.second, rule) }
         binding.compressEfficientWarning.text = activity.getString(R.string.cmp_warn_efficient_multi, efficient, videos.size)
         binding.compressEfficientWarning.visibility = if (efficient > 0) android.view.View.VISIBLE else android.view.View.GONE
         refreshEta()
@@ -433,43 +412,12 @@ class CompressOptionsDialog(
             else -> CompressionPrefs.DEST_SAME
         }
         prefs.destMode = destMode
-        val planned = videos.mapNotNull { (path, info) -> plan(path, info, destMode) }
+        val rule = currentRule(destMode = destMode, after = after)
+        val planned = videos.mapNotNull { (path, info) -> RulePlanner.plan(path, info, rule) }
         dialog?.dismiss()
         onConfirm(planned, after)
     }
 
-    private fun plan(path: String, info: VideoInfo, destMode: Int): PlannedVideo? {
-        val destination = when (destMode) {
-            CompressionPrefs.DEST_COMPRIMIDOS -> Destination.MediaFolder(CompressionOutput.FALLBACK_RELATIVE_PATH)
-            CompressionPrefs.DEST_CUSTOM -> Destination.Direct(prefs.customPath ?: return null)
-            else -> Destination.Direct(File(path).parent ?: return null)
-        }
-        // Com vários vídeos, a resolução escolhida só se aplica a quem é maior que ela.
-        val shortSide = selectedShortSide()?.takeIf { it in CompressionPlanner.resolutionChoices(info) }
-        val size = CompressionPlanner.outputSize(info, shortSide)
-        val preset = presetOfSelection()
-        val audioPlan = CompressionPlanner.audioPlan(info, preset)
-        val bitrate = preset?.let { CompressionPlanner.presetBitrate(info, size, it) } ?: customBitrate(info)
-        val options = CompressionOptions(
-            outputWidth = if (shortSide != null) size.width else null,
-            outputHeight = if (shortSide != null) size.height else null,
-            videoBitrate = bitrate.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
-            useHevc = info.hevcEncoder.supported,
-            qualityTag = CompressionPlanner.qualityTag(bitrate, size, CompressionPlanner.fpsOf(info)),
-            audioReencodeBitrate = audioPlan.reencodeBitrate,
-            audioDownmixToStereo = audioPlan.downmixToStereo,
-        )
-        return PlannedVideo(
-            path, info, options, destination,
-            estimatedSize = CompressionPlanner.estimateSize(info, bitrate, preset),
-            efficient = CompressionPlanner.isAlreadyEfficient(info, requestedForWarning(info)),
-        )
-    }
-
     private fun formatBitrate(bps: Long): String =
         if (bps >= 1_000_000) String.format(Locale.US, "%.2f Mbps", bps / 1_000_000.0) else "${bps / 1000} kbps"
-
-    companion object {
-        private const val SEEK_MIN = 10
-    }
 }

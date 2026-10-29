@@ -13,11 +13,14 @@ interface QueueDao {
     @Query("SELECT * FROM queue_items WHERE id = :id")
     fun get(id: Long): QueueItem?
 
-    @Query("SELECT * FROM queue_items WHERE state = ${QueueItem.STATE_WAITING} ORDER BY id LIMIT 1")
+    @Query("SELECT * FROM queue_items WHERE state = ${QueueItem.STATE_WAITING} ORDER BY position, id LIMIT 1")
     fun firstWaiting(): QueueItem?
 
-    @Query("SELECT * FROM queue_items WHERE state IN (${QueueItem.STATE_WAITING}, ${QueueItem.STATE_RUNNING}) ORDER BY id")
+    @Query("SELECT * FROM queue_items WHERE state IN (${QueueItem.STATE_WAITING}, ${QueueItem.STATE_RUNNING}) ORDER BY position, id")
     fun getPending(): List<QueueItem>
+
+    @Query("SELECT COALESCE(MAX(position), 0) FROM queue_items")
+    fun maxPosition(): Long
 
     @Query("SELECT * FROM queue_items WHERE state = ${QueueItem.STATE_RUNNING}")
     fun getRunning(): List<QueueItem>

@@ -131,14 +131,21 @@ object QueueRepository {
 
     fun hasDeleteConsent(batchId: Long) = synchronized(consentedBatches) { batchId in consentedBatches }
 
-    /** Adiciona no fim; vídeos já pendentes na fila são ignorados. [then] recebe as posições (n.º) na fila pendente. */
+    /**
+     * Adiciona no fim (posição após a maior existente, na mesma transação); vídeos já pendentes na fila são ignorados.
+     * [then] recebe as posições (n.º) na fila pendente.
+     */
     fun add(context: Context, items: List<QueueItem>, then: (AddResult) -> Unit) {
         io(context, { dao ->
-            val pending = dao.getPendingPaths().toSet()
-            val fresh = items.filter { it.path !in pending }.distinctBy { it.path }
-            dao.insertAll(fresh)
-            val total = dao.getPending().size
-            AddResult(total - fresh.size + 1, total, fresh.size, items.size - fresh.size)
+            QueueDatabase.getInstance(context).runInTransaction<AddResult> {
+                val pending = dao.getPendingPaths().toSet()
+                val start = dao.maxPosition() + 1
+                val fresh = items.filter { it.path !in pending }.distinctBy { it.path }
+                    .mapIndexed { i, item -> item.copy(position = start + i) }
+                dao.insertAll(fresh)
+                val total = dao.getPending().size
+                AddResult(total - fresh.size + 1, total, fresh.size, items.size - fresh.size)
+            }
         }) {
             notifyChanged()
             then(it)

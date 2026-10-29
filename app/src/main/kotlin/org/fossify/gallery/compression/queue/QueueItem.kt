@@ -6,10 +6,11 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import org.fossify.gallery.compression.engine.CompressionOptions
 import org.fossify.gallery.compression.engine.Destination
+import org.fossify.gallery.compression.ui.RulePlanner
 import java.io.File
 
 /** Um vídeo na fila. Opções já calculadas na adição; o vídeo é analisado de novo ao começar o item. */
-@Entity(tableName = "queue_items", indices = [Index(value = ["state"])])
+@Entity(tableName = "queue_items", indices = [Index(value = ["state"]), Index(value = ["state", "position"])])
 data class QueueItem(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     /** Itens adicionados juntos; a confirmação de "apagar de vez" vale por lote. */
@@ -59,6 +60,15 @@ data class QueueItem(
     @ColumnInfo(name = "finished_at") val finishedAt: Long? = null,
     /** Tempo só da compressão (Transformer), sem gravação e verificação. */
     @ColumnInfo(name = "compress_ms") val compressMs: Long? = null,
+
+    /** Ordem de execução dos aguardando (menor primeiro; empate pelo id). Definida em [QueueRepository.add]. */
+    @ColumnInfo(name = "position", defaultValue = "0") val position: Long = 0,
+    /** Escolhas da adição, para a edição: RulePlanner.PRESET_* / ordinal do preset (-1 = item anterior à migração 3→4). */
+    @ColumnInfo(name = "preset", defaultValue = "-1") val preset: Int = RulePlanner.PRESET_UNKNOWN,
+    /** % do bitrate de referência no Personalizado. */
+    @ColumnInfo(name = "custom_pct") val customPct: Int? = null,
+    /** Lado menor aplicado; null = resolução original. */
+    @ColumnInfo(name = "short_side") val shortSide: Int? = null,
 ) {
     val name: String get() = File(path).name
     val isPending: Boolean get() = state == STATE_WAITING || state == STATE_RUNNING
@@ -97,6 +107,7 @@ data class QueueItem(
         fun create(
             batchId: Long, path: String, originalSize: Long, estimatedSize: Long, options: CompressionOptions, destination: Destination, after: Int,
             videoWidth: Int, videoHeight: Int, fps: Float, durationMs: Long,
+            preset: Int, customPct: Int?, shortSide: Int?,
         ) =
             QueueItem(
                 batchId = batchId,
@@ -120,6 +131,9 @@ data class QueueItem(
                 videoHeight = videoHeight,
                 fps = fps,
                 durationMs = durationMs,
+                preset = preset,
+                customPct = customPct,
+                shortSide = shortSide,
             )
     }
 }

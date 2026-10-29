@@ -8,7 +8,7 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 /** Banco próprio da fila (compression_queue.db), separado do GalleryDatabase do Fossify. */
-@Database(entities = [QueueItem::class, VideoInfoEntry::class], version = 3, exportSchema = false)
+@Database(entities = [QueueItem::class, VideoInfoEntry::class], version = 4, exportSchema = false)
 abstract class QueueDatabase : RoomDatabase() {
 
     abstract fun QueueDao(): QueueDao
@@ -42,12 +42,24 @@ abstract class QueueDatabase : RoomDatabase() {
             }
         }
 
+        /** Ordem e escolhas da adição (Etapa 6c). Itens existentes: posição = id (mesma ordem), preset desconhecido (-1). */
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE queue_items ADD COLUMN position INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE queue_items ADD COLUMN preset INTEGER NOT NULL DEFAULT -1")
+                db.execSQL("ALTER TABLE queue_items ADD COLUMN custom_pct INTEGER")
+                db.execSQL("ALTER TABLE queue_items ADD COLUMN short_side INTEGER")
+                db.execSQL("UPDATE queue_items SET position = id")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_queue_items_state_position` ON `queue_items` (`state`, `position`)")
+            }
+        }
+
         fun getInstance(context: Context): QueueDatabase {
             if (db == null) {
                 synchronized(QueueDatabase::class) {
                     if (db == null) {
                         db = Room.databaseBuilder(context.applicationContext, QueueDatabase::class.java, "compression_queue.db")
-                            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                             .build()
                     }
                 }

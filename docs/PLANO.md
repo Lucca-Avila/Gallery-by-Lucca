@@ -46,7 +46,7 @@
 - [x] Botão "Medir com precisão" em "Informações para compressão": varredura completa cancelável, substitui os valores estimados no cache.
 - [x] Rotação: `MediaActivity` não é mais recriada (configChanges + `onConfigurationChanged`); a seleção e o diálogo permanecem e as colunas se ajustam.
 - [x] Modo lista: nome em até 2 linhas, cortado no meio com reticências e final preservado (`_comp_q<N>` e extensão); selo "q<N>" ao lado do tamanho.
-- Nota: a migração da 6b-2 (`position`, `preset`) passa a ser 3→4.
+- Nota: a migração de `position`/`preset` (antes prevista na 6b-2) virou a 3→4 da 6c-1.
 
 ## Etapa 4: Complementos do preset "Inteligente"
 - [ ] Resolução padrão automática: >1080p -> 1080p; <=1080p mantém (hoje o padrão é manter a original e o usuário escolhe).
@@ -88,11 +88,30 @@
 - [x] Tela escura de baixo consumo (`QueueDimActivity`): brilho ~1%, fundo preto, texto cinza escuro que muda de posição a cada ~60 s, um toque (ou voltar) volta ao normal; fecha sozinha quando a fila para; o serviço em primeiro plano independe dela.
 - [x] Lista da galeria (`MediaActivity`) atualiza sozinha quando um item é concluído, com intervalo mínimo de 3 s.
 
-### 6b-2: Edição da fila (concorrência e migração)
-- [ ] Reordenar aguardando por arrastar (coluna `position`, migração 2→3, `firstWaiting`/`getPending` por posição; lista congelada durante o arraste).
-- [ ] Trocar destino de item aguardando.
-- [ ] Editar opções (preset, resolução, "depois de comprimir") de item aguardando, reaproveitando o `CompressOptionsDialog` (coluna `preset`). Se virar "apagar de vez", o item vai para um lote novo com confirmação própria.
-- [ ] Edições com SQL condicional (`WHERE state = aguardando`).
+### 6c: Tela de lote e edição da fila (plano aprovado; ordem 6c-1, 6c-2, 6b-2a, 6b-2b; a antiga 6b-2 está dentro delas)
+Fora do escopo: lembrar a regra por pasta (a última regra global da 6c-2 cobre a maior parte dos casos).
+
+#### 6c-1: Base (concluída)
+- [x] `CompressRule` (preset, % do Personalizado, lado menor, destino, depois de comprimir) e `RulePlanner` (cálculo sem tela) extraídos do `CompressOptionsDialog`, que passa a usá-los sem mudança visível.
+- [x] Migração 3→4: `position` (= id nos itens existentes), `preset` (-1 nos existentes; 0–2 presets, 3 Personalizado), `custom_pct`, `short_side`; defaults iguais na entidade e no banco; índice `(state, position)`. `firstWaiting`/`getPending` por `position, id`; `add` calcula a posição numa transação.
+- [x] Itens novos gravam `position`/`preset`/`custom_pct`/`short_side`.
+- [x] Migração testada com cópia do banco real da Pasta Segura (43 concluídos): as 36 colunas antigas e o cache idênticos, mesma ordem, sem FATAL. Também com a fila vazia.
+- [x] Validado por mim no aparelho: comprimir 1 e vários vídeos, estimativas e `_comp_q<N>` iguais aos de antes.
+
+#### 6c-2: Tela de lote
+- [ ] `CompressBatchActivity` (modo NOVO) para 2 ou mais vídeos: regra geral no topo; lista com resolução de saída, "≈ X MB (−Y%)", selo "já eficiente" e "personalizado"; total e tempo estimado; "Adicionar todos à fila" e "Remover os já eficientes" (substitui o aviso atual). 1 vídeo continua no diálogo.
+- [ ] Sobrescrita por vídeo pelo `CompressOptionsDialog` em modo regra ("Aplicar").
+- [ ] Confirmação única de "apagar de vez" (regra geral e sobrescritas, quantidade e tamanho total); última regra global lembrada ("apagar de vez" nunca).
+- [ ] Lista de vídeos passada em memória (não no Intent); girar a tela sem perder nada; testar na Pasta Segura.
+
+#### 6b-2a: Ordem da fila
+- [ ] Reordenar aguardando por arrastar (transação com `UPDATE position … WHERE id = ? AND state = aguardando`); item em andamento fixo no topo; lista congelada durante o arraste, recarregada ao soltar.
+- [ ] Testar com a fila rodando: o próximo segue a nova ordem e a ordem sobrevive ao app ser morto.
+
+#### 6b-2b: Edição da fila
+- [ ] "Editar" no item (diálogo) e "Editar aguardando" (tela de lote em modo EDITAR); trocar destino. Item antigo (`preset = -1`) abre como Personalizado, com % = bitrate ÷ referência e resolução deduzida de `out_width`.
+- [ ] Edições com SQL condicional (`WHERE id = ? AND state = aguardando AND phase = nenhuma`); se nada mudar, "O item já começou; alterações não aplicadas". Estado checado também ao abrir o editor. Atualiza estimativa e dados do ETA.
+- [ ] Virar "apagar de vez" (ou consentimento perdido): confirmação nova e `batch_id` novo com `grantDeleteConsent`; sair de "apagar de vez" só atualiza o campo.
 
 ## Etapa 7: Marca de "já comprimido"
 - [ ] Protótipo: gravar marca nos metadados do MP4; verificar se sobrevive a mover/copiar.

@@ -85,6 +85,9 @@ class CompressFlow(
                 videoHeight = it.options.outputHeight ?: it.info.effectiveHeight,
                 fps = CompressionPlanner.fpsOf(it.info),
                 durationMs = it.info.durationMs,
+                preset = it.presetCode,
+                customPct = it.customPct,
+                shortSide = it.shortSide,
             )
         }
         val add = {
