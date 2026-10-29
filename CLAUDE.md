@@ -39,3 +39,4 @@ Rodar a partir da raiz do repositório com o ambiente:
 - Atualizações feitas pelo adb chegam à cópia da Pasta Segura, porque é o mesmo pacote. Se um dia não chegarem, remover o app da Pasta Segura e adicionar de novo.
 - As Etapas 5 (apagar original) e 6 (serviço em primeiro plano com tela apagada) devem ser testadas dentro da Pasta Segura, com atenção ao bloqueio automático dela.
 - Configurações e banco do app são separados por perfil.
+- O S23 (One UI 8.5) recusa o tipo de serviço em primeiro plano `mediaProcessing` (o sistema o trata como "none" e lança `InvalidForegroundServiceTypeException`). O `QueueService` tenta `mediaProcessing` e, nessa exceção, usa `dataSync` (declarado no manifest com a permissão `FOREGROUND_SERVICE_DATA_SYNC`). Não remover o fallback.

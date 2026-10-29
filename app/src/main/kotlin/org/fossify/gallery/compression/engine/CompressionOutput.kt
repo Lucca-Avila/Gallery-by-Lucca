@@ -32,16 +32,18 @@ object CompressionOutput {
         destination: Destination,
         originalFileName: String,
         qualityTag: Int,
+        /** Chamado com o arquivo final antes de começar a escrevê-lo (a fila guarda para apagar o parcial se o processo morrer). */
+        onTarget: (File) -> Unit = {},
     ): PublishedFile {
         val base = baseNameOf(originalFileName)
         val q = qualityTag
         when (destination) {
-            is Destination.Direct -> publishDirect(context, temp, destination.folderPath, base, q)?.let { return it }
+            is Destination.Direct -> publishDirect(context, temp, destination.folderPath, base, q, onTarget)?.let { return it }
             is Destination.MediaFolder ->
-                publishToMediaStore(context, temp, destination.relativePath, base, q)
+                publishToMediaStore(context, temp, destination.relativePath, base, q, onTarget)
                     ?.let { return PublishedFile(it, destination.relativePath, false, mediaStoreFile(destination.relativePath, it)) }
         }
-        val name = publishToMediaStore(context, temp, FALLBACK_RELATIVE_PATH, base, q)
+        val name = publishToMediaStore(context, temp, FALLBACK_RELATIVE_PATH, base, q, onTarget)
             ?: throw CompressionException("Não foi possível gravar em $FALLBACK_RELATIVE_PATH")
         return PublishedFile(name, FALLBACK_RELATIVE_PATH, true, mediaStoreFile(FALLBACK_RELATIVE_PATH, name))
     }
@@ -59,7 +61,7 @@ object CompressionOutput {
     private fun candidate(base: String, n: Int, q: Int) =
         if (n == 1) "${base}_comp_q$q.mp4" else "${base}_comp_q${q}_$n.mp4"
 
-    private fun publishToMediaStore(context: Context, temp: File, relative: String, base: String, q: Int): String? {
+    private fun publishToMediaStore(context: Context, temp: File, relative: String, base: String, q: Int, onTarget: (File) -> Unit): String? {
         val resolver = context.contentResolver
         val collection = if (relative.startsWith("Download/")) {
             MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
@@ -77,6 +79,7 @@ object CompressionOutput {
             put(MediaStore.MediaColumns.RELATIVE_PATH, relative)
             put(MediaStore.MediaColumns.IS_PENDING, 1)
         }
+        onTarget(mediaStoreFile(relative, name))
         val uri: Uri = try {
             resolver.insert(collection, values)
         } catch (e: Exception) {
@@ -104,12 +107,13 @@ object CompressionOutput {
         )?.use { it.count > 0 } ?: false
 
     /** null = pasta inexistente ou sem permissão de escrita (chamador usa o fallback). Falha no meio da cópia apaga o parcial. */
-    private fun publishDirect(context: Context, temp: File, folder: String, base: String, q: Int): PublishedFile? {
+    private fun publishDirect(context: Context, temp: File, folder: String, base: String, q: Int, onTarget: (File) -> Unit): PublishedFile? {
         val dir = File(folder)
         if (!dir.isDirectory || !dir.canWrite()) return null
         var n = 1
         while (File(dir, candidate(base, n, q)).exists()) n++
         val target = File(dir, candidate(base, n, q))
+        onTarget(target)
         try {
             target.outputStream().use { o -> temp.inputStream().use { it.copyTo(o) } }
         } catch (e: Exception) {

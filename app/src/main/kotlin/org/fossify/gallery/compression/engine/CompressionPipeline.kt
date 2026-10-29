@@ -25,8 +25,18 @@ class CompressionPipeline(
     private val destination: Destination,
     private val after: Int,
     private val remover: OriginalRemover,
+    private val hooks: Hooks = object : Hooks {},
 ) {
     enum class Stage { SAVING, VERIFYING }
+
+    /** Pontos de recuperação usados pela fila; chamados na thread do pipeline. */
+    interface Hooks {
+        /** O destino final vai começar a ser escrito (se o processo morrer agora, é um parcial a apagar). */
+        fun onTarget(file: File) {}
+
+        /** Gravado e com a data acertada; dali em diante só falta verificar e tratar o original. */
+        fun onPublished(newSize: Long, published: PublishedFile, dateCheck: DatePreserver.Check) {}
+    }
 
     sealed class Outcome {
         data class Discarded(val newSize: Long, val originalSize: Long) : Outcome()
@@ -45,7 +55,7 @@ class CompressionPipeline(
             }
             onStage(Stage.SAVING)
             val dates = DatePreserver.read(context, path)
-            published = CompressionOutput.publish(context, result.file, destination, File(path).name, options.qualityTag)
+            published = CompressionOutput.publish(context, result.file, destination, File(path).name, options.qualityTag, hooks::onTarget)
             dateCheck = dates?.let { DatePreserver.apply(context, published.file, it) }
                 ?: DatePreserver.Check(false, context.getString(R.string.cmp_date_unreadable))
         } catch (e: Exception) {
@@ -54,7 +64,12 @@ class CompressionPipeline(
         } finally {
             result.file.delete()
         }
+        hooks.onPublished(newSize, published, dateCheck)
+        finish(newSize, published, dateCheck, onStage, onDone)
+    }
 
+    /** Verificação e tratamento do original. Também usado pela fila para retomar um item já publicado. */
+    fun finish(newSize: Long, published: PublishedFile, dateCheck: DatePreserver.Check, onStage: (Stage) -> Unit, onDone: (Outcome) -> Unit) {
         fun done(line: String) = onDone(Outcome.Done(newSize, published, dateCheck, line))
         try {
             if (after == CompressionPrefs.AFTER_KEEP) {

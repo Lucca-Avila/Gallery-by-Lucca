@@ -13,6 +13,7 @@ import org.fossify.commons.extensions.*
 import org.fossify.commons.helpers.*
 import org.fossify.commons.models.RadioItem
 import org.fossify.gallery.R
+import org.fossify.gallery.compression.ui.CompressionPrefs
 import org.fossify.gallery.databinding.ActivitySettingsBinding
 import org.fossify.gallery.dialogs.*
 import org.fossify.gallery.extensions.*
@@ -66,6 +67,7 @@ class SettingsActivity : SimpleActivity() {
         setupRememberLastVideo()
         setupLoopVideos()
         setupOpenInSamsungPlayer()
+        setupQueueAutoStart()
         setupOpenVideosOnSeparateScreen()
         setupOnVideoTap()
         setupMaxBrightness()
@@ -298,6 +300,15 @@ class SettingsActivity : SimpleActivity() {
         binding.settingsOpenInSamsungPlayerHolder.setOnClickListener {
             binding.settingsOpenInSamsungPlayer.toggle()
             config.openInSamsungPlayer = binding.settingsOpenInSamsungPlayer.isChecked
+        }
+    }
+
+    private fun setupQueueAutoStart() {
+        val prefs = CompressionPrefs(this)
+        binding.settingsQueueAutoStart.isChecked = prefs.queueAutoStart
+        binding.settingsQueueAutoStartHolder.setOnClickListener {
+            binding.settingsQueueAutoStart.toggle()
+            prefs.queueAutoStart = binding.settingsQueueAutoStart.isChecked
         }
     }
 

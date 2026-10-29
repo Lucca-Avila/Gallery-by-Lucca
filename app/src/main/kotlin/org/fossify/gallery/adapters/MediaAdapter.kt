@@ -197,7 +197,7 @@ class MediaAdapter(
             findItem(R.id.cab_edit).isVisible = isOneItemSelected
             findItem(R.id.cab_set_as).isVisible = false
             findItem(R.id.cab_resize).isVisible = canResize(selectedItems)
-            findItem(R.id.cab_compress).isVisible = isOneItemSelected && selectedItems.first().isVideo() && !isInRecycleBin
+            findItem(R.id.cab_compress).isVisible = selectedItems.all { it.isVideo() } && !isInRecycleBin
             findItem(R.id.cab_compress_info).isVisible = isOneItemSelected && selectedItems.first().isVideo() && !isInRecycleBin
             findItem(R.id.cab_confirm_selection).isVisible = isAGetIntent && allowMultiplePicks && selectedKeys.isNotEmpty()
             findItem(R.id.cab_restore_recycle_bin_files).isVisible = selectedPaths.all { it.startsWith(activity.recycleBinPath) }
@@ -237,7 +237,7 @@ class MediaAdapter(
             R.id.cab_fix_date_taken -> fixDateTaken()
             R.id.cab_set_as -> setAs()
             R.id.cab_resize -> resize()
-            R.id.cab_compress -> getFirstSelectedItemPath()?.let { CompressFlow(activity, it) { listener?.refreshItems() }.start() }
+            R.id.cab_compress -> CompressFlow(activity, getSelectedItems().map { it.path }) { finishActMode() }.start()
             R.id.cab_compress_info -> getFirstSelectedItemPath()?.let { VideoInfoDialog(activity, it) }
             R.id.cab_delete -> checkDeleteConfirmation()
         }

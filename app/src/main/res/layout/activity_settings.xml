@@ -298,6 +298,21 @@
             </RelativeLayout>
 
             <RelativeLayout
+                android:id="@+id/settings_queue_auto_start_holder"
+                style="@style/SettingsHolderSwitchStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <org.fossify.commons.views.MyMaterialSwitch
+                    android:id="@+id/settings_queue_auto_start"
+                    style="@style/SettingsSwitchStyle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/cmp_q_auto_start" />
+
+            </RelativeLayout>
+
+            <RelativeLayout
                 android:id="@+id/settings_open_videos_on_separate_screen_holder"
                 style="@style/SettingsHolderSwitchStyle"
                 android:layout_width="match_parent"

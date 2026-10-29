@@ -19,7 +19,29 @@ class CompressionPrefs(context: Context) {
         get() = prefs.getInt(KEY_AFTER, AFTER_KEEP).takeIf { it == AFTER_TRASH } ?: AFTER_KEEP
         set(value) = prefs.edit().putInt(KEY_AFTER, if (value == AFTER_TRASH) AFTER_TRASH else AFTER_KEEP).apply()
 
+    /** Ao adicionar à fila, começa a processar sem precisar tocar em "Iniciar". */
+    var queueAutoStart: Boolean
+        get() = prefs.getBoolean(KEY_AUTO_START, true)
+        set(value) = prefs.edit().putBoolean(KEY_AUTO_START, value).apply()
+
+    /** A permissão de notificações só é pedida na primeira adição à fila. */
+    var notificationAsked: Boolean
+        get() = prefs.getBoolean(KEY_NOTIF_ASKED, false)
+        set(value) = prefs.edit().putBoolean(KEY_NOTIF_ASKED, value).apply()
+
+    /** INTERRUPTED_*: por que a fila parou sem o usuário pedir (mostra o aviso "Retomar"). */
+    var queueInterrupted: Int
+        get() = prefs.getInt(KEY_INTERRUPTED, INTERRUPTED_NONE)
+        set(value) = prefs.edit().putInt(KEY_INTERRUPTED, value).apply()
+
     companion object {
+        const val INTERRUPTED_NONE = 0
+        const val INTERRUPTED_KILLED = 1
+        const val INTERRUPTED_TIME_LIMIT = 2
+        private const val KEY_AUTO_START = "queue_auto_start"
+        private const val KEY_NOTIF_ASKED = "queue_notification_asked"
+        private const val KEY_INTERRUPTED = "queue_interrupted"
+
         const val AFTER_KEEP = 0
         const val AFTER_TRASH = 1
         const val AFTER_DELETE = 2

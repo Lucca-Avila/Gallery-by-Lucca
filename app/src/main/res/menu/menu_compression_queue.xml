@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/queue_start"
+        android:title="@string/cmp_q_start"
+        app:showAsAction="always" />
+    <item
+        android:id="@+id/queue_pause"
+        android:title="@string/cmp_q_pause"
+        app:showAsAction="always" />
+    <item
+        android:id="@+id/queue_pause_now"
+        android:title="@string/cmp_q_pause_now"
+        app:showAsAction="never" />
+</menu>

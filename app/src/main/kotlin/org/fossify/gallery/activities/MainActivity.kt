@@ -144,6 +144,8 @@ import org.fossify.gallery.interfaces.DirectoryOperationsListener
 import org.fossify.gallery.jobs.NewPhotoFetcher
 import org.fossify.gallery.models.Directory
 import org.fossify.gallery.models.Medium
+import org.fossify.gallery.compression.queue.QueueActivity
+import org.fossify.gallery.compression.queue.QueueInterruptedNotice
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileNotFoundException
@@ -296,6 +298,7 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
         mTimeFormat = getTimeFormat()
 
         refreshMenuItems()
+        QueueInterruptedNotice.showIfNeeded(this)
 
         if (mStoredAnimateGifs != config.animateGifs) {
             getRecyclerAdapter()?.updateAnimateGifs(config.animateGifs)
@@ -506,6 +509,7 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
                 R.id.stop_showing_excluded -> tryToggleTemporarilyShowExcluded()
                 R.id.create_new_folder -> createNewFolder()
                 R.id.open_recycle_bin -> openRecycleBin()
+                R.id.compression_queue -> startActivity(Intent(this, QueueActivity::class.java))
                 R.id.column_count -> changeColumnCount()
                 R.id.set_as_default_folder -> setAsDefaultFolder()
                 R.id.more_apps_from_us -> launchMoreAppsFromUsIntent()

@@ -4,7 +4,6 @@ import android.widget.RadioButton
 import android.widget.SeekBar
 import androidx.appcompat.app.AlertDialog
 import org.fossify.commons.activities.BaseSimpleActivity
-import org.fossify.commons.dialogs.ConfirmationDialog
 import org.fossify.commons.extensions.beVisible
 import org.fossify.commons.extensions.formatSize
 import org.fossify.commons.extensions.getAlertDialogBuilder
@@ -27,15 +26,31 @@ import java.io.File
 import java.util.Locale
 import kotlin.math.roundToInt
 
+/** Um vídeo com as opções já resolvidas, pronto para entrar na fila. */
+data class PlannedVideo(
+    val path: String,
+    val info: VideoInfo,
+    val options: CompressionOptions,
+    val destination: Destination,
+    val estimatedSize: Long,
+    /** O alvo passa do teto de 80% ou o original já está em codec eficiente (ganho pequeno). */
+    val efficient: Boolean,
+)
+
+/** Opções de compressão de um ou vários vídeos; com vários, as mesmas escolhas valem para cada um e a estimativa é somada. */
 class CompressOptionsDialog(
     private val activity: BaseSimpleActivity,
-    private val path: String,
-    private val onConfirm: (info: VideoInfo, options: CompressionOptions, destination: Destination, after: Int) -> Unit,
+    private val paths: List<String>,
+    private val onConfirm: (planned: List<PlannedVideo>, after: Int) -> Unit,
 ) {
     private val binding = DialogCompressOptionsBinding.inflate(activity.layoutInflater)
     private val prefs = CompressionPrefs(activity)
+    private val multi = paths.size > 1
     private var dialog: AlertDialog? = null
+    /** Primeiro vídeo legível; referência do slider e, com um vídeo só, de toda a tela. */
     private var info: VideoInfo? = null
+    private var videos = emptyList<Pair<String, VideoInfo>>()
+    private var skipped = emptyList<String>()
     private var sliderTouched = false
     private var updating = false
 
@@ -47,7 +62,7 @@ class CompressOptionsDialog(
             .setPositiveButton(R.string.cmp_start, null)
             .setNegativeButton(org.fossify.commons.R.string.cancel, null)
             .apply {
-                activity.setupDialogStuff(binding.root, this, R.string.cmp_title) { alertDialog ->
+                activity.setupDialogStuff(binding.root, this, if (multi) R.string.cmp_title_multi else R.string.cmp_title) { alertDialog ->
                     dialog = alertDialog
                     alertDialog.setOnDismissListener { cancelled = true }
                     alertDialog.getButton(AlertDialog.BUTTON_POSITIVE).apply {
@@ -61,43 +76,62 @@ class CompressOptionsDialog(
 
     private fun analyze() {
         ensureBackgroundThread {
-            val result = try {
-                val uri = activity.getFinalUriFromPath(path, BuildConfig.APPLICATION_ID)
-                    ?: throw IllegalStateException("uri")
-                Result.success(VideoAnalyzer.analyze(activity, uri) { cancelled })
-            } catch (e: Exception) {
-                Result.failure(e)
+            val ok = mutableListOf<Pair<String, VideoInfo>>()
+            val failed = mutableListOf<String>()
+            var lastError = ""
+            paths.forEachIndexed { i, path ->
+                if (cancelled) return@ensureBackgroundThread
+                if (multi) activity.runOnUiThread { binding.compressMessage.text = activity.getString(R.string.cmp_analyzing_n, i + 1, paths.size) }
+                try {
+                    val uri = activity.getFinalUriFromPath(path, BuildConfig.APPLICATION_ID) ?: throw IllegalStateException("uri")
+                    val info = VideoAnalyzer.analyze(activity, uri) { cancelled }
+                    val decoder = info.videoDecoder
+                    if (decoder != null && !decoder.supported) {
+                        lastError = activity.getString(R.string.cmp_err_no_decoder, info.videoMime ?: activity.getString(R.string.cmp_unknown))
+                        failed.add(File(path).name)
+                    } else {
+                        ok.add(path to info)
+                    }
+                } catch (e: Exception) {
+                    lastError = activity.getString(R.string.vi_error, e.message ?: e.javaClass.simpleName)
+                    failed.add(File(path).name)
+                }
             }
             if (cancelled) return@ensureBackgroundThread
             activity.runOnUiThread {
-                result.onSuccess { setup(it) }
-                    .onFailure { binding.compressMessage.text = activity.getString(R.string.vi_error, it.message ?: it.javaClass.simpleName) }
+                when {
+                    ok.isEmpty() && !multi -> binding.compressMessage.text = lastError
+                    ok.isEmpty() -> binding.compressMessage.text = activity.getString(R.string.cmp_multi_none_readable, failed.joinToString(", "))
+                    else -> setup(ok, failed)
+                }
             }
         }
     }
 
-    private fun setup(info: VideoInfo) {
+    private fun setup(videos: List<Pair<String, VideoInfo>>, skipped: List<String>) {
+        this.videos = videos
+        this.skipped = skipped
+        val info = videos.first().second
         this.info = info
-        val decoder = info.videoDecoder
-        if (decoder != null && !decoder.supported) {
-            binding.compressMessage.text = activity.getString(R.string.cmp_err_no_decoder, info.videoMime ?: activity.getString(R.string.cmp_unknown))
-            return
-        }
         binding.compressMessage.visibility = android.view.View.GONE
         binding.compressContent.beVisible()
 
         val ref = CompressionPlanner.referenceBitrate(info)
-        binding.compressSource.text = activity.getString(
-            R.string.cmp_source,
-            "${info.effectiveWidth}×${info.effectiveHeight}",
-            info.fileSize.formatSize(),
-            formatBitrate(ref)
-        )
-        binding.compressWarnings.text = warnings(info).joinToString("\n").also {
+        binding.compressSource.text = if (multi) {
+            activity.getString(R.string.cmp_source_multi, videos.size, videos.sumOf { it.second.fileSize }.formatSize())
+        } else {
+            activity.getString(
+                R.string.cmp_source,
+                "${info.effectiveWidth}×${info.effectiveHeight}",
+                info.fileSize.formatSize(),
+                formatBitrate(ref)
+            )
+        }
+        binding.compressWarnings.text = (if (multi) multiWarnings() else warnings(info)).joinToString("\n").also {
             binding.compressWarnings.visibility = if (it.isEmpty()) android.view.View.GONE else android.view.View.VISIBLE
         }
 
-        setupResolution(info)
+        if (multi) setupResolutionMulti() else setupResolution(info)
         setupPresets()
         setupDestination()
         setupAfter()
@@ -110,6 +144,34 @@ class CompressOptionsDialog(
         if (info.subtitles.isNotEmpty()) add(activity.getString(R.string.cmp_warn_subs))
         if (info.likely10Bit) add(activity.getString(R.string.cmp_warn_hdr))
         if (!info.hevcEncoder.supported) add(activity.getString(R.string.cmp_warn_no_hevc))
+    }
+
+    private fun multiWarnings(): List<String> = buildList {
+        val infos = videos.map { it.second }
+        if (skipped.isNotEmpty()) add(activity.getString(R.string.cmp_warn_multi_skipped, skipped.size, skipped.joinToString(", ")))
+        infos.count { it.audio.size > 1 }.takeIf { it > 0 }?.let { add(activity.getString(R.string.cmp_warn_multi_audio, it)) }
+        infos.count { it.subtitles.isNotEmpty() }.takeIf { it > 0 }?.let { add(activity.getString(R.string.cmp_warn_multi_subs, it)) }
+        infos.count { it.likely10Bit }.takeIf { it > 0 }?.let { add(activity.getString(R.string.cmp_warn_multi_hdr, it)) }
+        if (infos.any { !it.hevcEncoder.supported }) add(activity.getString(R.string.cmp_warn_no_hevc))
+    }
+
+    /** Com vários vídeos, cada resolução só reduz os que são maiores que ela. */
+    private fun setupResolutionMulti() {
+        val buttons = mapOf(1080 to binding.compressRes1080, 720 to binding.compressRes720, 480 to binding.compressRes480)
+        binding.compressResOriginal.text = activity.getString(R.string.cmp_res_original_multi)
+        buttons.forEach { (target, button) ->
+            val reduced = videos.count { target in CompressionPlanner.resolutionChoices(it.second) }
+            if (reduced > 0) {
+                button.text = activity.getString(R.string.cmp_res_target_multi, target, reduced)
+            } else {
+                button.visibility = android.view.View.GONE
+            }
+        }
+        binding.compressResOriginal.isChecked = true
+        binding.compressResolutionGroup.setOnCheckedChangeListener { _, _ ->
+            if (binding.compressPresetCustom.isChecked && !sliderTouched) resetSliderToPreset(Preset.BALANCED)
+            refreshTarget()
+        }
     }
 
     private fun setupResolution(info: VideoInfo) {
@@ -177,28 +239,29 @@ class CompressOptionsDialog(
         updating = false
     }
 
-    private fun customBitrate(): Long {
-        val info = info!!
+    private fun customBitrate(info: VideoInfo = this.info!!): Long {
         val ref = CompressionPlanner.referenceBitrate(info)
         val pct = binding.compressQualitySeek.progress.coerceAtLeast(SEEK_MIN)
         return CompressionPlanner.clampBitrate((ref * pct / 100.0).toLong(), ref)
     }
 
-    private fun currentBitrate(): Long {
-        val info = info!!
-        val preset = presetOfSelection() ?: return customBitrate()
+    private fun currentBitrate(info: VideoInfo = this.info!!): Long {
+        val preset = presetOfSelection() ?: return customBitrate(info)
         return CompressionPlanner.presetBitrate(info, CompressionPlanner.outputSize(info, selectedShortSide()), preset)
     }
 
     /** Pedido "cru" usado para o aviso de eficiência: o do preset (antes do teto) ou o do slider. */
-    private fun requestedForWarning(): Long {
-        val info = info!!
-        val preset = presetOfSelection() ?: return customBitrate()
+    private fun requestedForWarning(info: VideoInfo = this.info!!): Long {
+        val preset = presetOfSelection() ?: return customBitrate(info)
         return CompressionPlanner.rawBitrate(info, CompressionPlanner.outputSize(info, selectedShortSide()), preset.bpp)
     }
 
     private fun refreshTarget() {
         val info = info ?: return
+        if (multi) {
+            refreshTargetMulti()
+            return
+        }
         val ref = CompressionPlanner.referenceBitrate(info)
         val size = CompressionPlanner.outputSize(info, selectedShortSide())
         val fps = CompressionPlanner.fpsOf(info)
@@ -224,6 +287,30 @@ class CompressOptionsDialog(
         ) + audioInfoLine(info)
         binding.compressEfficientWarning.visibility =
             if (CompressionPlanner.isAlreadyEfficient(info, requestedForWarning())) android.view.View.VISIBLE else android.view.View.GONE
+    }
+
+    /** Estimativas somadas: cada vídeo com o próprio alvo (bpp da sua resolução, teto e piso). */
+    private fun refreshTargetMulti() {
+        val total = videos.sumOf { it.second.fileSize }
+        fun line(nameRes: Int, preset: Preset?): String {
+            val est = videos.sumOf { (_, info) ->
+                val bitrate = preset?.let { CompressionPlanner.presetBitrate(info, CompressionPlanner.outputSize(info, selectedShortSide()), it) }
+                    ?: customBitrate(info)
+                CompressionPlanner.estimateSize(info, bitrate, preset)
+            }
+            val delta = if (total > 0) ((est - total) * 100.0 / total).roundToInt() else 0
+            val pct = if (delta <= 0) "−${-delta}%" else "+$delta%"
+            return activity.getString(R.string.cmp_preset_line_multi, activity.getString(nameRes), est.formatSize(), pct)
+        }
+        binding.compressPresetQuality.text = line(R.string.cmp_preset_quality, Preset.QUALITY)
+        binding.compressPresetBalanced.text = line(R.string.cmp_preset_balanced, Preset.BALANCED)
+        binding.compressPresetSaving.text = line(R.string.cmp_preset_saving, Preset.MAX_SAVING)
+        binding.compressPresetCustom.text = line(R.string.cmp_preset_custom, null)
+        binding.compressTargetInfo.text = activity.getString(R.string.cmp_target_multi)
+
+        val efficient = videos.count { CompressionPlanner.isAlreadyEfficient(it.second, requestedForWarning(it.second)) }
+        binding.compressEfficientWarning.text = activity.getString(R.string.cmp_warn_efficient_multi, efficient, videos.size)
+        binding.compressEfficientWarning.visibility = if (efficient > 0) android.view.View.VISIBLE else android.view.View.GONE
     }
 
     private fun audioInfoLine(info: VideoInfo): String {
@@ -274,7 +361,7 @@ class CompressOptionsDialog(
     }
 
     private fun pickFolder() {
-        PickDirectoryDialog(activity, File(path).parent ?: path, true, false, true, false) { picked ->
+        PickDirectoryDialog(activity, File(paths.first()).parent ?: paths.first(), true, false, true, false) { picked ->
             prefs.customPath = picked
             updateCustomLabel()
             binding.compressDestOther.isChecked = true
@@ -292,58 +379,51 @@ class CompressOptionsDialog(
     }
 
     private fun confirm() {
-        val info = info ?: return
+        if (info == null) return
         val after = when (binding.compressAfterGroup.checkedRadioButtonId) {
             R.id.compress_after_trash -> CompressionPrefs.AFTER_TRASH
             R.id.compress_after_delete -> CompressionPrefs.AFTER_DELETE
             else -> CompressionPrefs.AFTER_KEEP
         }
-        if (after != CompressionPrefs.AFTER_DELETE) {
-            prefs.afterMode = after
-            finish(info, after)
-            return
+        // "Apagar de vez" nunca é lembrado; a confirmação (uma por lote) é pedida por quem recebe o resultado.
+        if (after != CompressionPrefs.AFTER_DELETE) prefs.afterMode = after
+        val destMode = when (binding.compressDestGroup.checkedRadioButtonId) {
+            R.id.compress_dest_comprimidos -> CompressionPrefs.DEST_COMPRIMIDOS
+            R.id.compress_dest_other -> if (prefs.customPath != null) CompressionPrefs.DEST_CUSTOM else return
+            else -> CompressionPrefs.DEST_SAME
         }
-        // Apagar de vez: confirmação do próprio app a cada uso (nome e tamanho do original).
-        ConfirmationDialog(
-            activity,
-            activity.getString(R.string.cmp_confirm_delete_title) + "\n\n" +
-                activity.getString(R.string.cmp_confirm_delete_msg, File(path).name, info.fileSize.formatSize()),
-            positive = R.string.cmp_confirm_delete_ok,
-            negative = org.fossify.commons.R.string.cancel,
-        ) { finish(info, after) }
+        prefs.destMode = destMode
+        val planned = videos.mapNotNull { (path, info) -> plan(path, info, destMode) }
+        dialog?.dismiss()
+        onConfirm(planned, after)
     }
 
-    private fun finish(info: VideoInfo, after: Int) {
-        val destination = when (binding.compressDestGroup.checkedRadioButtonId) {
-            R.id.compress_dest_comprimidos -> {
-                prefs.destMode = CompressionPrefs.DEST_COMPRIMIDOS
-                Destination.MediaFolder(CompressionOutput.FALLBACK_RELATIVE_PATH)
-            }
-            R.id.compress_dest_other -> {
-                prefs.destMode = CompressionPrefs.DEST_CUSTOM
-                Destination.Direct(prefs.customPath ?: return)
-            }
-            else -> {
-                prefs.destMode = CompressionPrefs.DEST_SAME
-                val parent = File(path).parent ?: return
-                Destination.Direct(parent)
-            }
+    private fun plan(path: String, info: VideoInfo, destMode: Int): PlannedVideo? {
+        val destination = when (destMode) {
+            CompressionPrefs.DEST_COMPRIMIDOS -> Destination.MediaFolder(CompressionOutput.FALLBACK_RELATIVE_PATH)
+            CompressionPrefs.DEST_CUSTOM -> Destination.Direct(prefs.customPath ?: return null)
+            else -> Destination.Direct(File(path).parent ?: return null)
         }
-        val size = CompressionPlanner.outputSize(info, selectedShortSide())
-        val resized = selectedShortSide() != null
-        val audioPlan = CompressionPlanner.audioPlan(info, presetOfSelection())
-        val bitrate = currentBitrate()
+        // Com vários vídeos, a resolução escolhida só se aplica a quem é maior que ela.
+        val shortSide = selectedShortSide()?.takeIf { it in CompressionPlanner.resolutionChoices(info) }
+        val size = CompressionPlanner.outputSize(info, shortSide)
+        val preset = presetOfSelection()
+        val audioPlan = CompressionPlanner.audioPlan(info, preset)
+        val bitrate = preset?.let { CompressionPlanner.presetBitrate(info, size, it) } ?: customBitrate(info)
         val options = CompressionOptions(
-            outputWidth = if (resized) size.width else null,
-            outputHeight = if (resized) size.height else null,
+            outputWidth = if (shortSide != null) size.width else null,
+            outputHeight = if (shortSide != null) size.height else null,
             videoBitrate = bitrate.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
             useHevc = info.hevcEncoder.supported,
             qualityTag = CompressionPlanner.qualityTag(bitrate, size, CompressionPlanner.fpsOf(info)),
             audioReencodeBitrate = audioPlan.reencodeBitrate,
             audioDownmixToStereo = audioPlan.downmixToStereo,
         )
-        dialog?.dismiss()
-        onConfirm(info, options, destination, after)
+        return PlannedVideo(
+            path, info, options, destination,
+            estimatedSize = CompressionPlanner.estimateSize(info, bitrate, preset),
+            efficient = CompressionPlanner.isAlreadyEfficient(info, requestedForWarning(info)),
+        )
     }
 
     private fun formatBitrate(bps: Long): String =

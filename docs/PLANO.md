@@ -59,20 +59,22 @@
 - [x] Validado por mim no aparelho: um vídeo pelo caminho completo (compressão, gravação, data, original). Só então começa o 6a-2.
 
 ### 6a-2: Fila (motor)
-- [ ] Banco Room próprio `compression_queue.db` (fora do GalleryDatabase), repositório e `QueueRunner` (um item por vez; estados aguardando, comprimindo, concluído, falhou, descartado, cancelado; fase do item para recuperação).
-- [ ] `QueueService` em primeiro plano, tipo `mediaProcessing` (permissões no manifest), `onTimeout` (cancela o item atual, devolve a aguardando, grava "pausada pelo limite" e avisa), wake lock parcial por item, Transformer na thread principal.
-- [ ] Permissão de notificações pedida na primeira adição; notificação com "item i de N" e %, toque abre a fila, ações "Pausar" e "Pular item atual"; resumo final (concluídos, falhas, economia).
-- [ ] Todo "Comprimir" (1 ou vários vídeos) entra no fim da fila; diálogo de progresso antigo deixa de ser usado. Aviso rápido "Adicionado à fila (n.º X)" com ação "Ver fila", sem abrir a tela. Avisa se o vídeo já está na fila.
-- [ ] Preferência "Iniciar fila automaticamente" (padrão ligada). Pausar (termina o item atual, padrão) e "Pausar agora" (secundária).
-- [ ] Opções por adição com estimativa somada; aviso de vídeos já eficientes ("Adicionar todos mesmo assim" / "Adicionar só os demais").
-- [ ] "Apagar de vez": confirmação única por lote (quantidade e tamanho total). O consentimento vale só para aquele lote e para a sessão em que foi dado: ao retomar a fila em outro dia (ou após o processo ser morto), itens com "apagar de vez" voltam a pedir confirmação antes de apagar; nunca apaga sem passar pelo `ResultVerifier`.
-- [ ] Recuperação: item "comprimindo" volta a aguardando, temporário órfão apagado, 2 mortes seguidas no mesmo item = falhou; destino parcial apagado; fase "publicado" retoma só o pós-processamento. Banner "Fila interrompida: Retomar" ao abrir o app.
-- [ ] Falha de um item não para os demais; motivo gravado.
-- [ ] Tela mínima: lista com nome, estado e %; em itens concluídos, tamanho antes e depois; motivo quando falhou ou foi descartado; Iniciar/Pausar; `FLAG_KEEP_SCREEN_ON` enquanto a fila roda.
-- [ ] Testar: tela ligada, tela apagada, dentro da Pasta Segura (inclusive com o bloqueio automático dela), app morto no meio de um item, vídeo corrompido no lote, "apagar de vez" em lote pequeno, notificação negada.
+- [x] Banco Room próprio `compression_queue.db` (fora do GalleryDatabase), repositório e `QueueRunner` (um item por vez; estados aguardando, comprimindo, concluído, falhou, descartado, cancelado; fase do item para recuperação).
+- [x] `QueueService` em primeiro plano, tipo `mediaProcessing` (permissões no manifest), `onTimeout` (cancela o item atual, devolve a aguardando, grava "pausada pelo limite" e avisa), wake lock parcial por item, Transformer na thread principal.
+- [x] Permissão de notificações pedida na primeira adição; notificação com "item i de N" e %, toque abre a fila, ações "Pausar" e "Pular item atual"; resumo final (concluídos, falhas, economia).
+- [x] Todo "Comprimir" (1 ou vários vídeos) entra no fim da fila; diálogo de progresso antigo deixa de ser usado. Aviso rápido "Adicionado à fila (n.º X)" com ação "Ver fila", sem abrir a tela. Avisa se o vídeo já está na fila.
+- [x] Preferência "Iniciar fila automaticamente" (padrão ligada). Pausar (termina o item atual, padrão) e "Pausar agora" (secundária).
+- [x] Opções por adição com estimativa somada; aviso de vídeos já eficientes ("Adicionar todos mesmo assim" / "Adicionar só os demais").
+- [x] "Apagar de vez": confirmação única por lote (quantidade e tamanho total). O consentimento vale só para aquele lote e para a sessão em que foi dado: ao retomar a fila em outro dia (ou após o processo ser morto), itens com "apagar de vez" voltam a pedir confirmação antes de apagar; nunca apaga sem passar pelo `ResultVerifier`.
+- [x] Recuperação: item "comprimindo" volta a aguardando, temporário órfão apagado, 2 mortes seguidas no mesmo item = falhou; destino parcial apagado; fase "publicado" retoma só o pós-processamento. Banner "Fila interrompida: Retomar" ao abrir o app.
+- [x] Falha de um item não para os demais; motivo gravado.
+- [x] Tela mínima: lista com nome, estado e %; em itens concluídos, tamanho antes e depois; motivo quando falhou ou foi descartado; Iniciar/Pausar; `FLAG_KEEP_SCREEN_ON` enquanto a fila roda.
+- [x] Testar: tela ligada, tela apagada, dentro da Pasta Segura (inclusive com o bloqueio automático dela), app morto no meio de um item, vídeo corrompido no lote, "apagar de vez" em lote pequeno, notificação negada.
 
 ### 6b: Tela da fila
 - [ ] Visual final: remover, reordenar, cancelar item, cancelar a fila inteira (com confirmação), trocar destino e opções por item, limpar concluídos.
+- [ ] Estimativa de tempo restante: velocidade medida em pixels por segundo dos itens concluídos (média recente, com valor padrão conservador baseado nos meus testes: cerca de 270 milhões de pixels por segundo em 720p, 24 fps), mostrada no topo da tela da fila ('Restante: ≈ X min (N itens)'), na notificação e no diálogo ao adicionar, sempre com '≈'. Dados já gravados por item desde a 6a-2: resolução de saída, fps, duração, início, fim e tempo só de compressão (`compress_ms`).
+- [ ] Resumo da última execução persistido na tela da fila (concluídos, falhas, espaço economizado, horário de término), porque as notificações da Pasta Segura podem estar bloqueadas.
 - [ ] Tela escura de baixo consumo (brilho mínimo, quase preta, só o progresso, texto que muda de posição; um toque volta ao normal).
 
 ## Etapa 7: Marca de "já comprimido"
