@@ -27,13 +27,29 @@ import java.io.File
 import java.util.Locale
 import kotlin.math.roundToInt
 
-/** Opções de compressão de um ou vários vídeos; com vários, as mesmas escolhas valem para cada um e a estimativa é somada. */
+/**
+ * Opções de compressão de um ou vários vídeos; com vários, as mesmas escolhas valem para cada um e a estimativa é somada.
+ * Em modo regra ([RuleMode]) não analisa nem grava preferências: abre com uma regra pronta e devolve a regra editada.
+ */
 @OptIn(UnstableApi::class)
 class CompressOptionsDialog(
     private val activity: BaseSimpleActivity,
     private val paths: List<String>,
     private val onConfirm: (planned: List<PlannedVideo>, after: Int) -> Unit,
+    private val ruleMode: RuleMode? = null,
 ) {
+    /**
+     * Edição de uma regra da tela de lote. [onApply] recebe a regra editada e os campos que mudaram em relação a [initial];
+     * com [onReset], aparece "Usar regra geral".
+     */
+    class RuleMode(
+        val videos: List<Pair<String, VideoInfo>>,
+        val initial: CompressRule,
+        val title: String,
+        val onApply: (rule: CompressRule, changed: Set<RuleField>) -> Unit,
+        val onReset: (() -> Unit)? = null,
+    )
+
     private val binding = DialogCompressOptionsBinding.inflate(activity.layoutInflater)
     private val prefs = CompressionPrefs(activity)
     private val multi = paths.size > 1
@@ -46,6 +62,10 @@ class CompressOptionsDialog(
     /** Pixels por segundo para a estimativa de tempo; o padrão vale até a velocidade medida chegar do banco. */
     private var speed = QueueEta.DEFAULT_SPEED
     private var updating = false
+    /** Pasta de "Escolher outra pasta"; em modo regra começa na da regra. */
+    private var customPath = ruleMode?.initial?.customPath ?: prefs.customPath
+    /** Regra lida da tela logo depois de abrir em modo regra, para saber o que mudou. */
+    private var initialRule: CompressRule? = null
 
     /** O diálogo foi fechado: para de atualizar a tela, mas a análise em andamento continua. */
     @Volatile
@@ -53,10 +73,12 @@ class CompressOptionsDialog(
 
     init {
         activity.getAlertDialogBuilder()
-            .setPositiveButton(R.string.cmp_start, null)
+            .setPositiveButton(if (ruleMode != null) R.string.cmp_b_apply else R.string.cmp_start, null)
             .setNegativeButton(org.fossify.commons.R.string.cancel, null)
             .apply {
-                activity.setupDialogStuff(binding.root, this, if (multi) R.string.cmp_title_multi else R.string.cmp_title) { alertDialog ->
+                ruleMode?.onReset?.let { reset -> setNeutralButton(R.string.cmp_b_use_general) { _, _ -> reset() } }
+                val titleRes = if (ruleMode != null) 0 else if (multi) R.string.cmp_title_multi else R.string.cmp_title
+                activity.setupDialogStuff(binding.root, this, titleRes, ruleMode?.title.orEmpty()) { alertDialog ->
                     dialog = alertDialog
                     alertDialog.setCanceledOnTouchOutside(false)
                     alertDialog.setOnDismissListener { dismissed = true }
@@ -64,7 +86,7 @@ class CompressOptionsDialog(
                         isEnabled = false
                         setOnClickListener { confirm() }
                     }
-                    analyze()
+                    if (ruleMode != null) setup(ruleMode.videos, emptyList()) else analyze()
                 }
             }
     }
@@ -148,7 +170,9 @@ class CompressOptionsDialog(
         setupPresets()
         setupDestination()
         setupAfter()
+        ruleMode?.let { applyRule(it.initial) }
         refreshTarget()
+        if (ruleMode != null) initialRule = readRule()
         dialog?.getButton(AlertDialog.BUTTON_POSITIVE)?.isEnabled = true
     }
 
@@ -206,6 +230,39 @@ class CompressOptionsDialog(
         }
     }
 
+    /** Marca na tela as escolhas de [rule]; uma resolução que não reduz nenhum vídeo daqui fica como "Original". */
+    private fun applyRule(rule: CompressRule) {
+        val resolution = when (rule.shortSide) {
+            1080 -> binding.compressRes1080
+            720 -> binding.compressRes720
+            480 -> binding.compressRes480
+            else -> null
+        }?.takeIf { it.visibility == android.view.View.VISIBLE } ?: binding.compressResOriginal
+        resolution.isChecked = true
+        when (rule.preset) {
+            Preset.QUALITY -> binding.compressPresetQuality.isChecked = true
+            Preset.BALANCED -> binding.compressPresetBalanced.isChecked = true
+            Preset.MAX_SAVING -> binding.compressPresetSaving.isChecked = true
+            null -> {
+                sliderTouched = true
+                binding.compressPresetCustom.isChecked = true
+                updating = true
+                binding.compressQualitySeek.progress = rule.customPct
+                updating = false
+            }
+        }
+        when {
+            rule.destMode == CompressionPrefs.DEST_COMPRIMIDOS -> binding.compressDestComprimidos.isChecked = true
+            rule.destMode == CompressionPrefs.DEST_CUSTOM && customPath != null -> binding.compressDestOther.isChecked = true
+            else -> binding.compressDestSame.isChecked = true
+        }
+        when {
+            rule.after == CompressionPrefs.AFTER_DELETE -> binding.compressAfterDelete.isChecked = true
+            rule.after == CompressionPrefs.AFTER_TRASH && binding.compressAfterTrash.isEnabled -> binding.compressAfterTrash.isChecked = true
+            else -> binding.compressAfterKeep.isChecked = true
+        }
+    }
+
     private fun selectedShortSide(): Int? = when (binding.compressResolutionGroup.checkedRadioButtonId) {
         R.id.compress_res_1080 -> 1080
         R.id.compress_res_720 -> 720
@@ -259,7 +316,7 @@ class CompressOptionsDialog(
         customPct = binding.compressQualitySeek.progress,
         shortSide = selectedShortSide(),
         destMode = destMode,
-        customPath = prefs.customPath,
+        customPath = customPath,
         after = after,
     )
 
@@ -323,7 +380,12 @@ class CompressOptionsDialog(
         binding.compressPresetBalanced.text = line(R.string.cmp_preset_balanced, Preset.BALANCED)
         binding.compressPresetSaving.text = line(R.string.cmp_preset_saving, Preset.MAX_SAVING)
         binding.compressPresetCustom.text = line(R.string.cmp_preset_custom, null)
-        binding.compressTargetInfo.text = activity.getString(R.string.cmp_target_multi)
+        val custom = presetOfSelection() == null
+        binding.compressTargetInfo.text = if (custom) {
+            activity.getString(R.string.cmp_b_custom_each, binding.compressQualitySeek.progress.coerceAtLeast(RulePlanner.MIN_CUSTOM_PCT))
+        } else {
+            activity.getString(R.string.cmp_target_multi)
+        }
 
         val rule = currentRule()
         val efficient = videos.count { RulePlanner.isEfficient(it.second, rule) }
@@ -371,7 +433,7 @@ class CompressOptionsDialog(
     }
 
     private fun updateCustomLabel() {
-        val custom = prefs.customPath
+        val custom = customPath
         binding.compressDestOther.text = if (custom != null) {
             activity.getString(R.string.cmp_dest_other_chosen, custom)
         } else {
@@ -381,36 +443,51 @@ class CompressOptionsDialog(
 
     private fun pickFolder() {
         PickDirectoryDialog(activity, File(paths.first()).parent ?: paths.first(), true, false, true, false) { picked ->
-            prefs.customPath = picked
+            customPath = picked
+            if (ruleMode == null) prefs.customPath = picked
             updateCustomLabel()
             binding.compressDestOther.isChecked = true
         }
         // Se o seletor for cancelado sem escolha, volta para o destino salvo antes
-        if (prefs.customPath == null) restoreCheckedDestination()
+        if (customPath == null) restoreCheckedDestination()
     }
 
     private fun restoreCheckedDestination() {
-        val radio: RadioButton = when (prefs.destMode) {
+        val radio: RadioButton = when (ruleMode?.initial?.destMode ?: prefs.destMode) {
             CompressionPrefs.DEST_COMPRIMIDOS -> binding.compressDestComprimidos
             else -> binding.compressDestSame
         }
         radio.isChecked = true
     }
 
+    private fun selectedAfter() = when (binding.compressAfterGroup.checkedRadioButtonId) {
+        R.id.compress_after_trash -> CompressionPrefs.AFTER_TRASH
+        R.id.compress_after_delete -> CompressionPrefs.AFTER_DELETE
+        else -> CompressionPrefs.AFTER_KEEP
+    }
+
+    /** null: "outra pasta" marcada sem pasta escolhida. */
+    private fun selectedDestMode(): Int? = when (binding.compressDestGroup.checkedRadioButtonId) {
+        R.id.compress_dest_comprimidos -> CompressionPrefs.DEST_COMPRIMIDOS
+        R.id.compress_dest_other -> if (customPath != null) CompressionPrefs.DEST_CUSTOM else null
+        else -> CompressionPrefs.DEST_SAME
+    }
+
+    private fun readRule(): CompressRule? = selectedDestMode()?.let { currentRule(destMode = it, after = selectedAfter()) }
+
     private fun confirm() {
         if (info == null) return
-        val after = when (binding.compressAfterGroup.checkedRadioButtonId) {
-            R.id.compress_after_trash -> CompressionPrefs.AFTER_TRASH
-            R.id.compress_after_delete -> CompressionPrefs.AFTER_DELETE
-            else -> CompressionPrefs.AFTER_KEEP
+        if (ruleMode != null) {
+            val rule = readRule() ?: return
+            val initial = initialRule ?: rule
+            dialog?.dismiss()
+            ruleMode.onApply(rule, RulePlanner.diff(initial, rule, info.takeIf { !multi }))
+            return
         }
+        val after = selectedAfter()
         // "Apagar de vez" nunca é lembrado; a confirmação (uma por lote) é pedida por quem recebe o resultado.
         if (after != CompressionPrefs.AFTER_DELETE) prefs.afterMode = after
-        val destMode = when (binding.compressDestGroup.checkedRadioButtonId) {
-            R.id.compress_dest_comprimidos -> CompressionPrefs.DEST_COMPRIMIDOS
-            R.id.compress_dest_other -> if (prefs.customPath != null) CompressionPrefs.DEST_CUSTOM else return
-            else -> CompressionPrefs.DEST_SAME
-        }
+        val destMode = selectedDestMode() ?: return
         prefs.destMode = destMode
         val rule = currentRule(destMode = destMode, after = after)
         val planned = videos.mapNotNull { (path, info) -> RulePlanner.plan(path, info, rule) }

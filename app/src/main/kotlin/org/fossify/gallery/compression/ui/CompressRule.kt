@@ -22,6 +22,8 @@ data class PlannedVideo(
     val presetCode: Int,
     val customPct: Int?,
     val shortSide: Int?,
+    /** CompressionPrefs.AFTER_* deste vídeo. */
+    val after: Int,
 )
 
 /**
@@ -118,6 +120,47 @@ object RulePlanner {
             presetCode = presetCode(rule.preset),
             customPct = if (rule.preset == null) rule.customPct.coerceAtLeast(MIN_CUSTOM_PCT) else null,
             shortSide = shortSide,
+            after = rule.after,
         )
+    }
+
+    /** A mesma qualidade: mesmo preset e, no Personalizado, o mesmo %. */
+    fun sameQuality(a: CompressRule, b: CompressRule) =
+        a.preset == b.preset && (a.preset != null || a.customPct.coerceAtLeast(MIN_CUSTOM_PCT) == b.customPct.coerceAtLeast(MIN_CUSTOM_PCT))
+
+    /** Campos em que [a] e [b] diferem; com [info], a resolução só conta se o resultado neste vídeo for outro. */
+    fun diff(a: CompressRule, b: CompressRule, info: VideoInfo? = null): Set<RuleField> = buildSet {
+        if (!sameQuality(a, b)) add(RuleField.QUALITY)
+        val resA = if (info != null) effectiveShortSide(info, a) else a.shortSide
+        val resB = if (info != null) effectiveShortSide(info, b) else b.shortSide
+        if (resA != resB) add(RuleField.RESOLUTION)
+        if (a.destMode != b.destMode || (a.destMode == CompressionPrefs.DEST_CUSTOM && a.customPath != b.customPath)) add(RuleField.DESTINATION)
+        if (a.after != b.after) add(RuleField.AFTER)
+    }
+}
+
+/** Partes de uma [CompressRule] que um vídeo pode sobrescrever. */
+enum class RuleField { QUALITY, RESOLUTION, DESTINATION, AFTER }
+
+/** Sobrescrita de um vídeo na tela de lote: só os [fields] vêm de [rule]; o resto segue a regra geral. */
+data class RuleOverride(val rule: CompressRule, val fields: Set<RuleField>) {
+    fun applyTo(general: CompressRule): CompressRule = copyFields(rule, general, fields)
+
+    /** Sem os campos que já dão o mesmo resultado que a regra geral neste vídeo; null se não sobrar nenhum. */
+    fun pruned(general: CompressRule, info: VideoInfo?): RuleOverride? {
+        val kept = fields intersect RulePlanner.diff(applyTo(general), general, info)
+        return if (kept.isEmpty()) null else copy(fields = kept)
+    }
+
+    companion object {
+        /** [into] com os [fields] copiados de [from]. */
+        fun copyFields(from: CompressRule, into: CompressRule, fields: Set<RuleField>): CompressRule {
+            var r = into
+            if (RuleField.QUALITY in fields) r = r.copy(preset = from.preset, customPct = from.customPct)
+            if (RuleField.RESOLUTION in fields) r = r.copy(shortSide = from.shortSide)
+            if (RuleField.DESTINATION in fields) r = r.copy(destMode = from.destMode, customPath = from.customPath)
+            if (RuleField.AFTER in fields) r = r.copy(after = from.after)
+            return r
+        }
     }
 }

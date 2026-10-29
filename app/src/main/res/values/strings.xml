@@ -451,12 +451,6 @@
     <string name="cmp_q_duplicates">%1$d já estava(m) na fila</string>
     <string name="cmp_q_already_queued">Já está na fila</string>
     <string name="cmp_q_nothing_added">Nada foi adicionado.</string>
-    <string name="cmp_q_efficient_title">Vídeos já eficientes</string>
-    <string name="cmp_q_efficient_msg">%1$d de %2$d vídeos já estão bem comprimidos; o ganho deve ser pequeno:
-
-%3$s</string>
-    <string name="cmp_q_efficient_all">Adicionar todos mesmo assim</string>
-    <string name="cmp_q_efficient_others">Adicionar só os demais</string>
     <string name="cmp_q_confirm_delete_batch_msg">%1$d originais (%2$s no total) serão apagados sem passar pela lixeira, cada um só depois de o seu resultado ser verificado. Isso não pode ser desfeito. A confirmação vale só para este lote e enquanto o app não for encerrado.</string>
     <string name="cmp_q_confirm_delete_ok">Adicionar e apagar</string>
     <string name="cmp_q_reconfirm_delete_msg">%1$d vídeo(s) da fila (%2$s no total) estão marcados para apagar o original de vez. A confirmação anterior não vale mais porque a fila foi interrompida. Apagar de vez mesmo assim?</string>
@@ -543,4 +537,37 @@
     <string name="cmp_q_dim_saving">Gravando e verificando…</string>
     <string name="cmp_q_time_limit_title">Fila pausada</string>
     <string name="cmp_q_time_limit_text">O Android encerrou o processamento pelo limite de tempo. O item atual voltou a aguardar; toque para abrir a fila e retomar mais tarde.</string>
+    <!-- Tela de lote -->
+    <string name="cmp_b_title">Comprimir %1$d vídeos</string>
+    <string name="cmp_b_rule_title">Regra geral</string>
+    <string name="cmp_b_edit_rule">Editar regra</string>
+    <string name="cmp_b_apply">Aplicar</string>
+    <string name="cmp_b_use_general">Usar regra geral</string>
+    <string name="cmp_b_rule_quality">Qualidade: %1$s</string>
+    <string name="cmp_b_custom_each">Personalizado: %1$d%% do bitrate de cada vídeo (cada um parte do seu próprio bitrate)</string>
+    <string name="cmp_b_rule_resolution">Resolução máxima: %1$s</string>
+    <string name="cmp_b_res_original">original de cada vídeo</string>
+    <string name="cmp_b_res_max">até %1$dp (os menores ficam como estão)</string>
+    <string name="cmp_b_rule_dest">Destino: %1$s</string>
+    <string name="cmp_b_dest_same">mesma pasta do original</string>
+    <string name="cmp_b_dest_comprimidos">Movies/COMPRIMIDOS</string>
+    <string name="cmp_b_rule_after">Original: %1$s</string>
+    <string name="cmp_b_after_keep">manter</string>
+    <string name="cmp_b_after_trash">mover para a lixeira do app</string>
+    <string name="cmp_b_after_delete">apagar de vez</string>
+    <string name="cmp_b_override_title">Só este vídeo: %1$s</string>
+    <string name="cmp_b_row_estimate">%1$s · ≈ %2$s (%3$s)</string>
+    <string name="cmp_b_row_original_res">%1$s (original)</string>
+    <string name="cmp_b_row_analyzing">Analisando…</string>
+    <string name="cmp_b_row_failed">Não será comprimido: %1$s</string>
+    <string name="cmp_b_badge_efficient">já eficiente</string>
+    <string name="cmp_b_badge_custom">personalizado</string>
+    <string name="cmp_b_total">Total: %1$s → ≈ %2$s (%3$s) · %4$s</string>
+    <string name="cmp_b_total_analyzing">Analisando %1$d de %2$d…</string>
+    <string name="cmp_b_efficient_count">%1$d já eficiente(s); ganho pequeno</string>
+    <string name="cmp_b_efficient_none">Nenhum vídeo já eficiente</string>
+    <string name="cmp_b_skipped">%1$d não pode(m) ser comprimido(s) e fica(m) de fora</string>
+    <string name="cmp_b_remove_efficient">Remover os já eficientes</string>
+    <string name="cmp_b_add_all">Adicionar todos à fila</string>
+    <string name="cmp_b_removed">%1$d removido(s) do lote</string>
 </resources>

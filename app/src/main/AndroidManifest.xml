@@ -341,6 +341,12 @@
             android:label="@string/cmp_q_title" />
 
         <activity
+            android:name=".compression.ui.CompressBatchActivity"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden"
+            android:exported="false"
+            android:label="@string/cmp_title_multi" />
+
+        <activity
             android:name=".compression.queue.QueueDimActivity"
             android:configChanges="orientation|screenSize|keyboardHidden"
             android:exported="false"

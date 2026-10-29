@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/batch_coordinator"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <org.fossify.commons.views.MyAppBarLayout
+        android:id="@+id/batch_appbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/batch_toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="@color/color_primary"
+            app:title="@string/cmp_title_multi"
+            app:titleTextAppearance="@style/AppTheme.ActionBar.TitleTextStyle" />
+
+    </org.fossify.commons.views.MyAppBarLayout>
+
+    <LinearLayout
+        android:id="@+id/batch_holder"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <LinearLayout
+            android:id="@+id/batch_rule"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="@dimen/activity_margin"
+            android:paddingTop="@dimen/medium_margin"
+            android:paddingEnd="@dimen/medium_margin"
+            android:paddingBottom="@dimen/medium_margin">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <org.fossify.commons.views.MyTextView
+                    android:id="@+id/batch_rule_title"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/cmp_b_rule_title"
+                    android:textStyle="bold" />
+
+                <org.fossify.commons.views.MyTextView
+                    android:id="@+id/batch_rule_summary"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+            <org.fossify.commons.views.MyTextView
+                android:id="@+id/batch_rule_edit"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="?attr/selectableItemBackground"
+                android:enabled="false"
+                android:padding="@dimen/medium_margin"
+                android:text="@string/cmp_b_edit_rule"
+                android:textAllCaps="true"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <View
+            android:id="@+id/batch_divider_top"
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:alpha="0.2" />
+
+        <org.fossify.commons.views.MyRecyclerView
+            android:id="@+id/batch_list"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:clipToPadding="false"
+            android:scrollbars="vertical"
+            app:layoutManager="org.fossify.commons.views.MyLinearLayoutManager" />
+
+        <View
+            android:id="@+id/batch_divider_bottom"
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:alpha="0.2" />
+
+        <LinearLayout
+            android:id="@+id/batch_footer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingStart="@dimen/activity_margin"
+            android:paddingTop="@dimen/medium_margin"
+            android:paddingEnd="@dimen/activity_margin"
+            android:paddingBottom="@dimen/medium_margin">
+
+            <org.fossify.commons.views.MyTextView
+                android:id="@+id/batch_total"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textStyle="bold" />
+
+            <org.fossify.commons.views.MyTextView
+                android:id="@+id/batch_efficient"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="13sp" />
+
+            <org.fossify.commons.views.MyTextView
+                android:id="@+id/batch_skipped"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="13sp"
+                android:visibility="gone" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/small_margin"
+                android:gravity="end"
+                android:orientation="horizontal">
+
+                <org.fossify.commons.views.MyTextView
+                    android:id="@+id/batch_remove_efficient"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="?attr/selectableItemBackground"
+                    android:enabled="false"
+                    android:padding="@dimen/medium_margin"
+                    android:text="@string/cmp_b_remove_efficient"
+                    android:textAllCaps="true"
+                    android:textStyle="bold" />
+
+                <org.fossify.commons.views.MyTextView
+                    android:id="@+id/batch_add_all"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="?attr/selectableItemBackground"
+                    android:enabled="false"
+                    android:padding="@dimen/medium_margin"
+                    android:text="@string/cmp_b_add_all"
+                    android:textAllCaps="true"
+                    android:textStyle="bold" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

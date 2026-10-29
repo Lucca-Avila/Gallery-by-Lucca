@@ -6,7 +6,6 @@ import com.google.android.material.snackbar.Snackbar
 import org.fossify.commons.activities.BaseSimpleActivity
 import org.fossify.commons.dialogs.ConfirmationDialog
 import org.fossify.commons.extensions.formatSize
-import org.fossify.commons.extensions.getAlertDialogBuilder
 import org.fossify.commons.extensions.toast
 import org.fossify.gallery.R
 import org.fossify.gallery.compression.engine.CompressionPlanner
@@ -18,8 +17,9 @@ import org.fossify.gallery.compression.queue.QueueStarter
 import java.io.File
 
 /**
- * "Comprimir" de um ou vários vídeos: opções -> aviso de vídeos já eficientes -> confirmação única de "apagar de vez"
- * para o lote -> fim da fila. Não abre a tela da fila; mostra "Adicionado à fila (n.º X)" com a ação "Ver fila".
+ * "Comprimir" de um ou vários vídeos. Um vídeo: diálogo de opções. Dois ou mais: [CompressBatchActivity]. Depois, confirmação
+ * única de "apagar de vez" para o lote -> fim da fila. Não abre a tela da fila; mostra "Adicionado à fila (n.º X)" com a ação
+ * "Ver fila" na tela de origem.
  */
 @UnstableApi
 class CompressFlow(
@@ -31,56 +31,43 @@ class CompressFlow(
     private val prefs = CompressionPrefs(activity)
 
     fun start() {
-        CompressOptionsDialog(activity, paths) { planned, after -> checkEfficient(planned, after) }
-    }
-
-    /** Só com vários vídeos: com um, o aviso já aparece no próprio diálogo de opções. */
-    private fun checkEfficient(planned: List<PlannedVideo>, after: Int) {
-        val efficient = planned.filter { it.efficient }
-        if (planned.size < 2 || efficient.isEmpty()) {
-            confirmDelete(planned, after)
-            return
-        }
-        val names = efficient.take(MAX_NAMES).joinToString("\n") { "• " + File(it.path).name } +
-            if (efficient.size > MAX_NAMES) "\n…" else ""
-        activity.getAlertDialogBuilder()
-            .setTitle(R.string.cmp_q_efficient_title)
-            .setMessage(activity.getString(R.string.cmp_q_efficient_msg, efficient.size, planned.size, names))
-            .setPositiveButton(R.string.cmp_q_efficient_all) { _, _ -> confirmDelete(planned, after) }
-            .setNegativeButton(R.string.cmp_q_efficient_others) { _, _ ->
-                val others = planned.filterNot { it.efficient }
-                if (others.isEmpty()) activity.toast(R.string.cmp_q_nothing_added) else confirmDelete(others, after)
-            }
-            .setNeutralButton(org.fossify.commons.R.string.cancel, null)
-            .show()
-    }
-
-    /** "Apagar de vez": uma confirmação por lote, com a quantidade e o tamanho total. */
-    private fun confirmDelete(planned: List<PlannedVideo>, after: Int) {
-        if (after != CompressionPrefs.AFTER_DELETE) {
-            enqueue(planned, after, consent = false)
-            return
-        }
-        val total = planned.sumOf { it.info.fileSize }.formatSize()
-        val message = if (planned.size == 1) {
-            activity.getString(R.string.cmp_confirm_delete_msg, File(planned.first().path).name, total)
+        if (paths.size > 1) {
+            CompressBatchActivity.open(activity, this, paths)
         } else {
-            activity.getString(R.string.cmp_q_confirm_delete_batch_msg, planned.size, total)
+            CompressOptionsDialog(activity, paths, onConfirm = { planned, _ -> add(activity, planned) })
+        }
+    }
+
+    /**
+     * "Apagar de vez": uma confirmação para todo o lote, com a quantidade e o tamanho total dos originais marcados para isso
+     * (cada vídeo tem o seu "depois de comprimir"). [host] é a tela onde os diálogos aparecem; [done] roda depois de adicionar.
+     */
+    fun add(host: BaseSimpleActivity, planned: List<PlannedVideo>, done: () -> Unit = {}) {
+        val toDelete = planned.filter { it.after == CompressionPrefs.AFTER_DELETE }
+        if (toDelete.isEmpty()) {
+            enqueue(host, planned, consent = false, done)
+            return
+        }
+        val total = toDelete.sumOf { it.info.fileSize }.formatSize()
+        val message = if (planned.size == 1) {
+            host.getString(R.string.cmp_confirm_delete_msg, File(planned.first().path).name, total)
+        } else {
+            host.getString(R.string.cmp_q_confirm_delete_batch_msg, toDelete.size, total)
         }
         ConfirmationDialog(
-            activity,
-            activity.getString(R.string.cmp_confirm_delete_title) + "\n\n" + message,
+            host,
+            host.getString(R.string.cmp_confirm_delete_title) + "\n\n" + message,
             positive = R.string.cmp_q_confirm_delete_ok,
             negative = org.fossify.commons.R.string.cancel,
-        ) { enqueue(planned, after, consent = true) }
+        ) { enqueue(host, planned, consent = true, done) }
     }
 
-    private fun enqueue(planned: List<PlannedVideo>, after: Int, consent: Boolean) {
+    private fun enqueue(host: BaseSimpleActivity, planned: List<PlannedVideo>, consent: Boolean, done: () -> Unit) {
         val batchId = System.currentTimeMillis()
         if (consent) QueueRepository.grantDeleteConsent(listOf(batchId))
         val items = planned.map {
             QueueItem.create(
-                batchId, it.path, it.info.fileSize, it.estimatedSize, it.options, it.destination, after,
+                batchId, it.path, it.info.fileSize, it.estimatedSize, it.options, it.destination, it.after,
                 videoWidth = it.options.outputWidth ?: it.info.effectiveWidth,
                 videoHeight = it.options.outputHeight ?: it.info.effectiveHeight,
                 fps = CompressionPlanner.fpsOf(it.info),
@@ -91,10 +78,13 @@ class CompressFlow(
             )
         }
         val add = {
-            QueueRepository.add(activity, items) { result ->
-                showAdded(result)
-                if (result.added > 0 && prefs.queueAutoStart && !QueueRunner.running) QueueStarter.start(activity)
+            QueueRepository.add(host, items) { result ->
+                // O aviso e o início da fila ficam na tela de origem, porque a tela de lote fecha em [done].
+                val target = if (activity.isDestroyed || activity.isFinishing) host else activity
+                showAdded(target, result)
+                if (result.added > 0 && prefs.queueAutoStart && !QueueRunner.running) QueueStarter.start(target)
                 onAdded()
+                done()
             }
         }
         // A permissão de notificações só é pedida na primeira adição; negada, a fila roda do mesmo jeito.
@@ -102,11 +92,11 @@ class CompressFlow(
             add()
         } else {
             prefs.notificationAsked = true
-            activity.handleNotificationPermission { add() }
+            host.handleNotificationPermission { add() }
         }
     }
 
-    private fun showAdded(result: QueueRepository.AddResult) {
+    private fun showAdded(activity: BaseSimpleActivity, result: QueueRepository.AddResult) {
         val main = when {
             result.added == 0 -> activity.getString(R.string.cmp_q_already_queued)
             result.added == 1 -> activity.getString(R.string.cmp_q_added_one, result.firstPosition)
@@ -121,9 +111,5 @@ class CompressFlow(
         Snackbar.make(root, text, Snackbar.LENGTH_LONG)
             .setAction(R.string.cmp_q_view) { activity.startActivity(Intent(activity, QueueActivity::class.java)) }
             .show()
-    }
-
-    companion object {
-        private const val MAX_NAMES = 5
     }
 }

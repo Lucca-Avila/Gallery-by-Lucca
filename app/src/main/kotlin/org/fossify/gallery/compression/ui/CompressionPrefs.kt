@@ -1,6 +1,7 @@
 package org.fossify.gallery.compression.ui
 
 import android.content.Context
+import org.fossify.gallery.compression.engine.CompressionPlanner
 
 /** Última escolha de destino. SharedPreferences próprio para não mexer no Config do Fossify. */
 class CompressionPrefs(context: Context) {
@@ -18,6 +19,31 @@ class CompressionPrefs(context: Context) {
     var afterMode: Int
         get() = prefs.getInt(KEY_AFTER, AFTER_KEEP).takeIf { it == AFTER_TRASH } ?: AFTER_KEEP
         set(value) = prefs.edit().putInt(KEY_AFTER, if (value == AFTER_TRASH) AFTER_TRASH else AFTER_KEEP).apply()
+
+    /**
+     * Última regra geral da tela de lote: qualidade, resolução e destino; o "depois de comprimir" vem de [afterMode]
+     * (nunca "apagar de vez").
+     */
+    var lastRule: CompressRule
+        get() {
+            val code = prefs.getInt(KEY_RULE_PRESET, CompressionPlanner.Preset.BALANCED.ordinal)
+            val dest = destMode.takeIf { it != DEST_CUSTOM || customPath != null } ?: DEST_SAME
+            return CompressRule(
+                preset = if (code == RulePlanner.PRESET_CUSTOM) null else CompressionPlanner.Preset.entries.getOrElse(code) { CompressionPlanner.Preset.BALANCED },
+                customPct = prefs.getInt(KEY_RULE_PCT, DEFAULT_CUSTOM_PCT),
+                shortSide = prefs.getInt(KEY_RULE_SHORT_SIDE, 0).takeIf { it > 0 },
+                destMode = dest,
+                customPath = customPath,
+                after = afterMode,
+            )
+        }
+        set(value) {
+            prefs.edit().putInt(KEY_RULE_PRESET, RulePlanner.presetCode(value.preset)).putInt(KEY_RULE_PCT, value.customPct)
+                .putInt(KEY_RULE_SHORT_SIDE, value.shortSide ?: 0).apply()
+            destMode = value.destMode
+            if (value.destMode == DEST_CUSTOM) customPath = value.customPath
+            if (value.after != AFTER_DELETE) afterMode = value.after
+        }
 
     /** Ao adicionar à fila, começa a processar sem precisar tocar em "Iniciar". */
     var queueAutoStart: Boolean
@@ -77,6 +103,10 @@ class CompressionPrefs(context: Context) {
     }
 
     companion object {
+        private const val KEY_RULE_PRESET = "batch_rule_preset"
+        private const val KEY_RULE_PCT = "batch_rule_pct"
+        private const val KEY_RULE_SHORT_SIDE = "batch_rule_short_side"
+        private const val DEFAULT_CUSTOM_PCT = 50
         private const val KEY_SPEEDS = "queue_speed_samples"
         private const val KEY_RUN_AT = "queue_run_at"
         private const val KEY_RUN_DONE = "queue_run_done"

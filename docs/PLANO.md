@@ -98,11 +98,11 @@ Fora do escopo: lembrar a regra por pasta (a última regra global da 6c-2 cobre 
 - [x] Migração testada com cópia do banco real da Pasta Segura (43 concluídos): as 36 colunas antigas e o cache idênticos, mesma ordem, sem FATAL. Também com a fila vazia.
 - [x] Validado por mim no aparelho: comprimir 1 e vários vídeos, estimativas e `_comp_q<N>` iguais aos de antes.
 
-#### 6c-2: Tela de lote
-- [ ] `CompressBatchActivity` (modo NOVO) para 2 ou mais vídeos: regra geral no topo; lista com resolução de saída, "≈ X MB (−Y%)", selo "já eficiente" e "personalizado"; total e tempo estimado; "Adicionar todos à fila" e "Remover os já eficientes" (substitui o aviso atual). 1 vídeo continua no diálogo.
-- [ ] Sobrescrita por vídeo pelo `CompressOptionsDialog` em modo regra ("Aplicar").
-- [ ] Confirmação única de "apagar de vez" (regra geral e sobrescritas, quantidade e tamanho total); última regra global lembrada ("apagar de vez" nunca).
-- [ ] Lista de vídeos passada em memória (não no Intent); girar a tela sem perder nada; testar na Pasta Segura.
+#### 6c-2: Tela de lote (concluída)
+- [x] `CompressBatchActivity` (modo NOVO) para 2 ou mais vídeos: regra geral no topo; lista com resolução de saída, "≈ X MB (−Y%)", selo "já eficiente" e "personalizado"; total e tempo estimado; "Adicionar todos à fila" e "Remover os já eficientes" (substitui o aviso atual). 1 vídeo continua no diálogo.
+- [x] Sobrescrita por vídeo pelo `CompressOptionsDialog` em modo regra ("Aplicar").
+- [x] Confirmação única de "apagar de vez" (regra geral e sobrescritas, quantidade e tamanho total); última regra global lembrada ("apagar de vez" nunca).
+- [x] Lista de vídeos passada em memória (não no Intent); girar a tela sem perder nada; testar na Pasta Segura.
 
 #### 6b-2a: Ordem da fila
 - [ ] Reordenar aguardando por arrastar (transação com `UPDATE position … WHERE id = ? AND state = aguardando`); item em andamento fixo no topo; lista congelada durante o arraste, recarregada ao soltar.
