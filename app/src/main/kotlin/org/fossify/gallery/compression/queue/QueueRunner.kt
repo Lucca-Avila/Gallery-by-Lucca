@@ -3,6 +3,7 @@ package org.fossify.gallery.compression.queue
 import android.content.Context
 import android.net.Uri
 import android.os.PowerManager
+import android.util.Log
 import androidx.media3.common.util.UnstableApi
 import org.fossify.commons.extensions.formatSize
 import org.fossify.commons.helpers.ensureBackgroundThread
@@ -32,17 +33,23 @@ class QueueRunner(context: Context, private val callbacks: Callbacks) {
         fun onStopped(reason: StopReason, stats: Stats)
     }
 
-    enum class StopReason { FINISHED, PAUSED, TIME_LIMIT }
+    /** PAUSED = pausa manual; THERMAL = pausa automática por temperatura (ThermalGuard), a única que o app retoma sozinho. */
+    enum class StopReason { FINISHED, PAUSED, TIME_LIMIT, THERMAL }
 
-    data class Stats(var done: Int = 0, var failed: Int = 0, var discarded: Int = 0, var canceled: Int = 0, var savedBytes: Long = 0)
+    data class Stats(
+        var done: Int = 0, var failed: Int = 0, var discarded: Int = 0, var canceled: Int = 0, var savedBytes: Long = 0,
+        var thermalPauses: Int = 0, var thermalAt: Long = 0,
+    )
 
     private val context = context.applicationContext
     private val stats = Stats()
     private var processed = 0
+    @Volatile
     private var current: QueueItem? = null
     private var compressor: VideoCompressor? = null
     private var wakeLock: PowerManager.WakeLock? = null
     private var pauseAfterCurrent = false
+    private var pauseReason = StopReason.PAUSED
     private var stopReason: StopReason? = null
     private var skipRequested = false
     private var lastPercent = -1
@@ -61,26 +68,44 @@ class QueueRunner(context: Context, private val callbacks: Callbacks) {
         stats.discarded = previous.discarded
         stats.canceled = previous.canceled
         stats.savedBytes = previous.savedBytes
+        stats.thermalPauses = previous.thermalPauses
+        stats.thermalAt = previous.thermalAt
         persistRun(CompressionPrefs.LastRun.REASON_RUNNING)
         QueueRepository.notifyChanged()
         next()
     }
 
+    /** Item em andamento; pode ser lido de outra thread (ThermalLog). */
+    val currentItemId get() = current?.id
+
+    /** Pausa manual já pedida: prevalece sobre a térmica (a fila não retoma sozinha). */
+    private val manualPauseRequested get() = pauseAfterCurrent && (stopReason ?: pauseReason) == StopReason.PAUSED
+
     /** Termina o item atual e para. */
-    fun pause() {
+    fun pause(reason: StopReason = StopReason.PAUSED) {
+        if (reason == StopReason.THERMAL && pauseAfterCurrent) return
+        pauseReason = reason
+        if (reason == StopReason.PAUSED && stopReason == StopReason.THERMAL) stopReason = StopReason.PAUSED
         pauseAfterCurrent = true
-        if (current == null) stop(StopReason.PAUSED)
+        if (current == null) stop(reason)
     }
 
-    /** Cancela o item atual (que volta a aguardar) e para. Se já estiver gravando, espera terminar. */
+    /**
+     * Cancela o item atual (que volta a aguardar) e para. Se já estiver gravando, espera terminar. Na compressão, o
+     * Transformer só lê o original; o resultado parcial é o temporário em cache, apagado pelo cancel().
+     */
     fun pauseNow(reason: StopReason = StopReason.PAUSED) {
-        stopReason = reason
+        val effective = if (reason == StopReason.THERMAL && manualPauseRequested) StopReason.PAUSED else reason
+        stopReason = effective
         pauseAfterCurrent = true
-        val item = current ?: return stop(reason)
+        val item = current ?: return stop(effective)
         val c = compressor ?: return
-        c.cancel()
+        val tempGone = c.cancel()
         compressor = null
-        endItem(item.copy(state = QueueItem.STATE_WAITING, phase = QueueItem.PHASE_NONE, progress = 0), counted = false)
+        if (reason == StopReason.THERMAL) {
+            Log.i(ThermalGuard.TAG, "item cancelado na emergência: ${item.name} | temporário apagado: $tempGone | original intocado: ${item.path}")
+        }
+        endItem(item.copy(state = QueueItem.STATE_WAITING, phase = QueueItem.PHASE_NONE, progress = 0, partialPath = null), counted = false)
     }
 
     /** Cancela só o item atual e segue para o próximo. Sem efeito durante a gravação/verificação. */
@@ -108,7 +133,7 @@ class QueueRunner(context: Context, private val callbacks: Callbacks) {
 
     private fun next() {
         if (pauseAfterCurrent) {
-            stop(stopReason ?: StopReason.PAUSED)
+            stop(stopReason ?: pauseReason)
             return
         }
         // Pegar o próximo e marcá-lo como em andamento é uma operação só: remover ou cancelar na tela não o pega no meio.
@@ -327,11 +352,16 @@ class QueueRunner(context: Context, private val callbacks: Callbacks) {
         running = false
         releaseWakeLock()
         if (reason == StopReason.TIME_LIMIT) CompressionPrefs(context).queueInterrupted = CompressionPrefs.INTERRUPTED_TIME_LIMIT
+        if (reason == StopReason.THERMAL) {
+            stats.thermalPauses++
+            stats.thermalAt = System.currentTimeMillis()
+        }
         persistRun(
             when (reason) {
                 StopReason.FINISHED -> CompressionPrefs.LastRun.REASON_FINISHED
                 StopReason.PAUSED -> CompressionPrefs.LastRun.REASON_PAUSED
                 StopReason.TIME_LIMIT -> CompressionPrefs.LastRun.REASON_TIME_LIMIT
+                StopReason.THERMAL -> CompressionPrefs.LastRun.REASON_THERMAL
             }
         )
         QueueRepository.notifyChanged()
@@ -341,7 +371,8 @@ class QueueRunner(context: Context, private val callbacks: Callbacks) {
     /** Grava o resumo acumulado, para a tela da fila mostrar mesmo com as notificações bloqueadas. */
     private fun persistRun(reason: Int) {
         CompressionPrefs(context).lastRun = CompressionPrefs.LastRun(
-            stats.done, stats.failed, stats.discarded, stats.canceled, stats.savedBytes, System.currentTimeMillis(), reason
+            stats.done, stats.failed, stats.discarded, stats.canceled, stats.savedBytes, System.currentTimeMillis(), reason,
+            stats.thermalPauses, stats.thermalAt,
         )
     }
 

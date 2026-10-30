@@ -50,6 +50,11 @@ class CompressionPrefs(context: Context) {
         get() = prefs.getBoolean(KEY_AUTO_START, true)
         set(value) = prefs.edit().putBoolean(KEY_AUTO_START, value).apply()
 
+    /** Pausa automática da fila por temperatura (ThermalGuard). */
+    var queueThermalPause: Boolean
+        get() = prefs.getBoolean(KEY_THERMAL_PAUSE, true)
+        set(value) = prefs.edit().putBoolean(KEY_THERMAL_PAUSE, value).apply()
+
     /** A permissão de notificações só é pedida na primeira adição à fila. */
     var notificationAsked: Boolean
         get() = prefs.getBoolean(KEY_NOTIF_ASKED, false)
@@ -72,6 +77,7 @@ class CompressionPrefs(context: Context) {
                 done = prefs.getInt(KEY_RUN_DONE, 0), failed = prefs.getInt(KEY_RUN_FAILED, 0),
                 discarded = prefs.getInt(KEY_RUN_DISCARDED, 0), canceled = prefs.getInt(KEY_RUN_CANCELED, 0),
                 savedBytes = prefs.getLong(KEY_RUN_SAVED, 0L), updatedAt = at, reason = prefs.getInt(KEY_RUN_REASON, LastRun.REASON_FINISHED),
+                thermalPauses = prefs.getInt(KEY_RUN_THERMAL_PAUSES, 0), thermalAt = prefs.getLong(KEY_RUN_THERMAL_AT, 0L),
             )
         }
         set(value) {
@@ -82,23 +88,27 @@ class CompressionPrefs(context: Context) {
                 editor.putInt(KEY_RUN_DONE, value.done).putInt(KEY_RUN_FAILED, value.failed).putInt(KEY_RUN_DISCARDED, value.discarded)
                     .putInt(KEY_RUN_CANCELED, value.canceled).putLong(KEY_RUN_SAVED, value.savedBytes)
                     .putLong(KEY_RUN_AT, value.updatedAt).putInt(KEY_RUN_REASON, value.reason)
+                    .putInt(KEY_RUN_THERMAL_PAUSES, value.thermalPauses).putLong(KEY_RUN_THERMAL_AT, value.thermalAt)
             }
             editor.apply()
         }
 
     /**
      * Resumo da execução: acumula entre pausas e retomadas e recomeça quando a fila esvaziou ([REASON_FINISHED]).
-     * [updatedAt] é o último evento (término, pausa ou item concluído).
+     * [updatedAt] é o último evento (término, pausa ou item concluído). [thermalPauses] e [thermalAt]: pausas por temperatura
+     * nesta execução e a hora da última.
      */
     data class LastRun(
         val done: Int = 0, val failed: Int = 0, val discarded: Int = 0, val canceled: Int = 0,
         val savedBytes: Long = 0, val updatedAt: Long = System.currentTimeMillis(), val reason: Int = REASON_RUNNING,
+        val thermalPauses: Int = 0, val thermalAt: Long = 0,
     ) {
         companion object {
             const val REASON_RUNNING = 0
             const val REASON_FINISHED = 1
             const val REASON_PAUSED = 2
             const val REASON_TIME_LIMIT = 3
+            const val REASON_THERMAL = 4
         }
     }
 
@@ -115,10 +125,14 @@ class CompressionPrefs(context: Context) {
         private const val KEY_RUN_CANCELED = "queue_run_canceled"
         private const val KEY_RUN_SAVED = "queue_run_saved"
         private const val KEY_RUN_REASON = "queue_run_reason"
+        private const val KEY_RUN_THERMAL_PAUSES = "queue_run_thermal_pauses"
+        private const val KEY_RUN_THERMAL_AT = "queue_run_thermal_at"
         const val INTERRUPTED_NONE = 0
         const val INTERRUPTED_KILLED = 1
         const val INTERRUPTED_TIME_LIMIT = 2
+        const val INTERRUPTED_THERMAL = 3
         private const val KEY_AUTO_START = "queue_auto_start"
+        private const val KEY_THERMAL_PAUSE = "queue_thermal_pause"
         private const val KEY_NOTIF_ASKED = "queue_notification_asked"
         private const val KEY_INTERRUPTED = "queue_interrupted"
 

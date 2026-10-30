@@ -85,6 +85,7 @@ class QueueActivity : SimpleActivity() {
                 R.id.queue_pause_now -> QueueService.send(this, QueueService.ACTION_PAUSE_NOW)
                 R.id.queue_dim -> startActivity(Intent(this, QueueDimActivity::class.java))
                 R.id.queue_cancel_all -> confirmCancelAll()
+                R.id.queue_thermal_pause -> toggleThermalPause()
                 else -> return@setOnMenuItemClickListener false
             }
             true
@@ -169,24 +170,42 @@ class QueueActivity : SimpleActivity() {
         }
     }
 
+    /** Liga/desliga a pausa por temperatura; o serviço, se ativo, aplica na hora (desligar durante a pausa retoma). */
+    private fun toggleThermalPause() {
+        val prefs = CompressionPrefs(this)
+        prefs.queueThermalPause = !prefs.queueThermalPause
+        ThermalLog.event(this, ThermalLog.PREF, null, "pausar se esquentar: " + if (prefs.queueThermalPause) "ligada" else "desligada")
+        QueueService.send(this, QueueService.ACTION_THERMAL_PREF)
+        refreshState()
+    }
+
     private fun refreshState() {
         val running = QueueRunner.running
+        val cooling = QueueService.cooling
         val hasWaiting = items.any { it.state == QueueItem.STATE_WAITING }
         if (running) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         binding.queueToolbar.menu.apply {
-            findItem(R.id.queue_start).isVisible = !running && hasWaiting
-            findItem(R.id.queue_pause).isVisible = running
+            findItem(R.id.queue_start).apply {
+                isVisible = !running && hasWaiting
+                setTitle(if (cooling) R.string.cmp_q_resume_now else R.string.cmp_q_start)
+            }
+            findItem(R.id.queue_pause).isVisible = running || cooling
             findItem(R.id.queue_pause_now).isVisible = running
             findItem(R.id.queue_dim).isVisible = running
             findItem(R.id.queue_cancel_all).isVisible = items.any { it.isPending }
+            findItem(R.id.queue_thermal_pause).isChecked = CompressionPrefs(this@QueueActivity).queueThermalPause
         }
         binding.queuePlaceholder.beVisibleIf(items.isEmpty())
 
         val interrupted = CompressionPrefs(this).queueInterrupted
-        binding.queueBanner.beVisibleIf(!running && hasWaiting && interrupted != CompressionPrefs.INTERRUPTED_NONE)
-        binding.queueBannerText.text = getString(
-            if (interrupted == CompressionPrefs.INTERRUPTED_TIME_LIMIT) R.string.cmp_q_banner_time_limit else R.string.cmp_q_banner_killed
-        )
+        binding.queueBanner.beVisibleIf(cooling || !running && hasWaiting && interrupted != CompressionPrefs.INTERRUPTED_NONE)
+        binding.queueBannerResume.setText(if (cooling) R.string.cmp_q_resume_now else R.string.cmp_q_resume)
+        binding.queueBannerText.text = when {
+            cooling -> getString(R.string.cmp_q_banner_thermal)
+            interrupted == CompressionPrefs.INTERRUPTED_TIME_LIMIT -> getString(R.string.cmp_q_banner_time_limit)
+            interrupted == CompressionPrefs.INTERRUPTED_THERMAL -> getString(R.string.cmp_q_banner_thermal_gave_up, (THERMAL_MAX_PAUSE_MS / 60_000).toInt())
+            else -> getString(R.string.cmp_q_banner_killed)
+        }
     }
 
     private fun buildRows(): List<Row> {
@@ -232,13 +251,17 @@ class QueueActivity : SimpleActivity() {
     private fun runFooter(run: CompressionPrefs.LastRun, running: Boolean): String {
         val saved = run.savedBytes.formatSize()
         val at = DateUtils.formatDateTime(this, run.updatedAt, DateUtils.FORMAT_SHOW_TIME or DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_ABBREV_ALL)
-        return when {
+        val footer = when {
             running -> getString(R.string.cmp_q_run_footer_running, saved)
             run.reason == CompressionPrefs.LastRun.REASON_FINISHED -> getString(R.string.cmp_q_run_footer_finished, saved, at)
             run.reason == CompressionPrefs.LastRun.REASON_PAUSED -> getString(R.string.cmp_q_run_footer_paused, saved, at)
             run.reason == CompressionPrefs.LastRun.REASON_TIME_LIMIT -> getString(R.string.cmp_q_run_footer_time_limit, saved, at)
+            run.reason == CompressionPrefs.LastRun.REASON_THERMAL -> getString(R.string.cmp_q_run_footer_thermal, saved, at)
             else -> getString(R.string.cmp_q_run_footer_interrupted, saved, at)
         }
+        if (run.thermalPauses == 0) return footer
+        val thermalAt = DateUtils.formatDateTime(this, run.thermalAt, DateUtils.FORMAT_SHOW_TIME)
+        return footer + "\n" + resources.getQuantityString(R.plurals.cmp_q_run_thermal_line, run.thermalPauses, thermalAt, run.thermalPauses)
     }
 
     private fun confirmCancelAll() {
@@ -247,7 +270,7 @@ class QueueActivity : SimpleActivity() {
             .setTitle(R.string.cmp_q_cancel_all_title)
             .setMessage(getString(R.string.cmp_q_cancel_all_msg, others))
             .setPositiveButton(R.string.cmp_q_cancel_all_ok) { _, _ ->
-                if (QueueRunner.running) QueueService.send(this, QueueService.ACTION_CANCEL_ALL) else QueueRepository.cancelWaiting(this)
+                if (QueueService.active) QueueService.send(this, QueueService.ACTION_CANCEL_ALL) else QueueRepository.cancelWaiting(this)
             }
             .setNegativeButton(R.string.cmp_q_cancel_all_back, null)
             .show()

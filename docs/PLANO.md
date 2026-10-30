@@ -132,6 +132,11 @@ Fora do escopo: lembrar a regra por pasta (a última regra global da 6c-2 cobre 
 
 ## Etapa 9: Polimento
 - [ ] Vídeos HDR/10 bits, 60 fps, formatos que o celular não decodifica, arquivos corrompidos, vídeos muito longos, pouco espaço em disco.
-- [ ] Pausa automática da fila por status térmico severo (`PowerManager` thermal status), retomando quando o aparelho esfriar.
+- Pausa automática por temperatura (plano aprovado; regras em SPEC.md, fila de compressão):
+  - [x] `ThermalGuard` (status térmico + bateria, histerese, pausa mínima de 5 min, espera máxima de 60 min, emergência com `pauseNow`), `StopReason.THERMAL`, serviço em primeiro plano mantido durante a pausa, wake lock próprio, log `ThermalGuard`.
+  - [x] Notificações (pausa, retomada, desistência), banner e "Retomar agora" na tela da fila, opção "Pausar se esquentar", linha no resumo.
+  - [x] Registro persistente `ThermalLog` (`files/thermal_log.csv`, eventos e amostra a cada 60 s, 30 dias / ~2 MB), sem mudar a pausa.
+  - [x] Implementada. Registro testado no aparelho (Pasta Segura, 29/10/2026): START e SAMPLE a cada 60 s com o id do item.
+  - [ ] NÃO testados: pausa por status (`override-status`), pausa pela bateria, emergência, pausa manual durante a pausa por calor e desistência após 60 min. Serão avaliados pelo `thermal_log.csv` no uso real.
 - [ ] Ajustes de interface e correção de bugs.
 - Pendente de teste com amostras reais: áudio 5.1/7.1 (downmix), canais desconhecidos, vídeo vertical, 4K/HDR, MKV com várias trilhas e legendas, arquivos maiores que 1,5 GB.

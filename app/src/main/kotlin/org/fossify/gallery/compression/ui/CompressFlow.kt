@@ -12,7 +12,7 @@ import org.fossify.gallery.compression.engine.CompressionPlanner
 import org.fossify.gallery.compression.queue.QueueActivity
 import org.fossify.gallery.compression.queue.QueueItem
 import org.fossify.gallery.compression.queue.QueueRepository
-import org.fossify.gallery.compression.queue.QueueRunner
+import org.fossify.gallery.compression.queue.QueueService
 import org.fossify.gallery.compression.queue.QueueStarter
 import java.io.File
 
@@ -82,7 +82,7 @@ class CompressFlow(
                 // O aviso e o início da fila ficam na tela de origem, porque a tela de lote fecha em [done].
                 val target = if (activity.isDestroyed || activity.isFinishing) host else activity
                 showAdded(target, result)
-                if (result.added > 0 && prefs.queueAutoStart && !QueueRunner.running) QueueStarter.start(target)
+                if (result.added > 0 && prefs.queueAutoStart && !QueueService.active) QueueStarter.start(target)
                 onAdded()
                 done()
             }

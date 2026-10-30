@@ -50,6 +50,12 @@ Os vídeos NÃO são gravados no celular, então as specs são imprevisíveis. O
 - Serviço em primeiro plano com notificação de progresso (funciona com tela apagada).
 - Tela da fila: ver, remover, reordenar, cancelar itens; ver status; trocar o destino de um item.
 - Cada item pode ter sua própria configuração, com um padrão aplicado ao lote.
+- Pausa automática por temperatura (opção "Pausar se esquentar" no menu da fila, ligada por padrão):
+  - Pausa se status térmico ≥ SEVERE **ou** bateria ≥ 43 °C: termina o item atual e para antes do próximo.
+  - Emergência (status ≥ CRITICAL ou bateria ≥ 46 °C): cancela o item atual, que volta a aguardar; o temporário é apagado e o original não é tocado. Se o item já estiver gravando/verificando, espera terminar (segundos).
+  - Retoma sozinha com status ≤ LIGHT **e** bateria ≤ 40 °C **e** pelo menos 5 min de pausa. Sem esfriar em 60 min, para de vez ("toque para retomar"), porque o tempo pausado conta no limite diário do serviço.
+  - Pausa manual nunca é retomada pelo app e prevalece sobre a térmica. "Retomar agora" ainda quente: só a emergência pausa de novo até a primeira leitura fria. Desligar a opção durante a pausa retoma.
+  - Avisos (canal do resumo) ao pausar, retomar e desistir; notificação fixa "Fila pausada por temperatura" com "Retomar agora" e "Pausar"; linha "Pausada por temperatura às HH:MM (n vezes)" no resumo da execução.
 
 ### 4. Marca de "já comprimido"
 - Gravar a marca dentro do próprio arquivo (metadados do MP4), para sobreviver à mudança de pasta/renomeação.

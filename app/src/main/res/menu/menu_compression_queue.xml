@@ -22,4 +22,10 @@
         android:id="@+id/queue_cancel_all"
         android:title="@string/cmp_q_cancel_all"
         app:showAsAction="never" />
+    <item
+        android:id="@+id/queue_thermal_pause"
+        android:checkable="true"
+        android:checked="true"
+        android:title="@string/cmp_q_thermal_pref"
+        app:showAsAction="never" />
 </menu>

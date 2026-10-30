@@ -545,6 +545,41 @@
     <string name="cmp_q_dim_saving">Gravando e verificando…</string>
     <string name="cmp_q_time_limit_title">Fila pausada</string>
     <string name="cmp_q_time_limit_text">O Android encerrou o processamento pelo limite de tempo. O item atual voltou a aguardar; toque para abrir a fila e retomar mais tarde.</string>
+    <!-- Pausa por temperatura -->
+    <string name="cmp_q_thermal_pref">Pausar se esquentar</string>
+    <string name="cmp_q_resume_now">Retomar agora</string>
+    <string name="cmp_q_thermal_reading">Bateria %1$s · %2$s</string>
+    <string-array name="cmp_q_thermal_status_names">
+        <item>sem aquecimento</item>
+        <item>aquecimento leve</item>
+        <item>aquecimento moderado</item>
+        <item>aquecimento grave</item>
+        <item>aquecimento crítico</item>
+        <item>emergência térmica</item>
+        <item>prestes a desligar</item>
+    </string-array>
+    <string name="cmp_q_thermal_cooling_title">Fila pausada por temperatura</string>
+    <string name="cmp_q_thermal_cooling_text">%1$s. Retoma sozinha ao esfriar.</string>
+    <string name="cmp_q_thermal_paused_title">Celular quente: fila pausada</string>
+    <string name="cmp_q_thermal_paused_text">%1$s. O item atual terminou; a fila retoma sozinha quando o celular esfriar.</string>
+    <string name="cmp_q_thermal_paused_emergency_text">%1$s. O item atual foi cancelado e voltou a aguardar (o original não foi alterado). A fila retoma sozinha quando o celular esfriar.</string>
+    <string name="cmp_q_thermal_resumed_title">Fila retomada</string>
+    <string name="cmp_q_thermal_resumed_text">O celular esfriou (%1$s).</string>
+    <string name="cmp_q_thermal_resumed_manual_text">Retomada a seu pedido, ainda quente (%1$s). Só uma emergência térmica pausa de novo até o celular esfriar.</string>
+    <string name="cmp_q_thermal_gave_up_title">Fila parada: celular ainda quente</string>
+    <string name="cmp_q_thermal_gave_up_text">Em %1$d min o celular não esfriou (%2$s). Toque para abrir a fila e retomar mais tarde.</string>
+    <string name="cmp_q_banner_thermal">Fila pausada por temperatura. Retoma sozinha ao esfriar.</string>
+    <string name="cmp_q_banner_thermal_gave_up">Fila parada: o celular não esfriou em %1$d min.</string>
+    <string name="cmp_q_notice_thermal">Fila parada por temperatura (%1$d aguardando)</string>
+    <string name="cmp_q_run_footer_thermal">Espaço economizado: %1$s · pausada por temperatura em %2$s</string>
+    <plurals name="cmp_q_run_thermal_line">
+        <item quantity="one">Pausada por temperatura às %1$s (%2$d vez)</item>
+        <item quantity="other">Pausada por temperatura às %1$s (%2$d vezes)</item>
+    </plurals>
+    <plurals name="cmp_q_summary_thermal">
+        <item quantity="one">Pausada %1$d vez por temperatura.</item>
+        <item quantity="other">Pausada %1$d vezes por temperatura.</item>
+    </plurals>
     <!-- Tela de lote -->
     <string name="cmp_b_title">Comprimir %1$d vídeos</string>
     <string name="cmp_b_rule_title">Regra geral</string>

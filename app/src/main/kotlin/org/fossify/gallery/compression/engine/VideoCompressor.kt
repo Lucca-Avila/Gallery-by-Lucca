@@ -130,12 +130,13 @@ class VideoCompressor(context: Context) {
         })
     }
 
-    /** Cancela e apaga o temporário. Não dispara callback. */
-    fun cancel() {
-        if (finished) return
+    /** Cancela e apaga o temporário. Não dispara callback. true se cancelou e o temporário não existe mais. */
+    fun cancel(): Boolean {
+        if (finished) return false
         finish()
         transformer?.cancel()
         tempFile?.delete()
+        return tempFile?.exists() != true
     }
 
     private fun finish() {
