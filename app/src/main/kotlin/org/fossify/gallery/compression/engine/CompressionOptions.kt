@@ -21,4 +21,5 @@ data class CompressionResult(
     val actualVideoBitrate: Long?,
 )
 
-class CompressionException(message: String, cause: Throwable? = null) : Exception(message, cause)
+/** [muxingTimeout] = o gravador ficou tempo demais sem receber dados (ERROR_CODE_MUXING_TIMEOUT); a fila refaz o item uma vez. */
+class CompressionException(message: String, cause: Throwable? = null, val muxingTimeout: Boolean = false) : Exception(message, cause)

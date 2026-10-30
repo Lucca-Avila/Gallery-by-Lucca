@@ -135,8 +135,9 @@ Fora do escopo: lembrar a regra por pasta (a última regra global da 6c-2 cobre 
 - Pausa automática por temperatura (plano aprovado; regras em SPEC.md, fila de compressão):
   - [x] `ThermalGuard` (status térmico + bateria, histerese, pausa mínima de 5 min, espera máxima de 60 min, emergência com `pauseNow`), `StopReason.THERMAL`, serviço em primeiro plano mantido durante a pausa, wake lock próprio, log `ThermalGuard`.
   - [x] Notificações (pausa, retomada, desistência), banner e "Retomar agora" na tela da fila, opção "Pausar se esquentar", linha no resumo.
-  - [x] Registro persistente `ThermalLog` (`files/thermal_log.csv`, eventos e amostra a cada 60 s, 30 dias / ~2 MB), sem mudar a pausa.
+  - [x] Registro persistente `ThermalLog` (`no_backup/thermal_log.csv`, eventos e amostra a cada 60 s, 30 dias / ~2 MB), sem mudar a pausa. Saiu de `files/` porque esvaziar a lixeira apagava o registro; a rotação tem teste de JVM.
   - [x] Implementada. Registro testado no aparelho (Pasta Segura, 29/10/2026): START e SAMPLE a cada 60 s com o id do item.
   - [ ] NÃO testados: pausa por status (`override-status`), pausa pela bateria, emergência, pausa manual durante a pausa por calor e desistência após 60 min. Serão avaliados pelo `thermal_log.csv` no uso real.
+- [x] Muxer: limite de 60 s entre amostras; `ERROR_CODE_MUXING_TIMEOUT` refaz o item uma vez; eventos `ERRO_MUXER` e `ERRO_MUXER_RETRY` no registro. Implementado; a nova tentativa ainda não foi vista acontecer no aparelho.
 - [ ] Ajustes de interface e correção de bugs.
 - Pendente de teste com amostras reais: áudio 5.1/7.1 (downmix), canais desconhecidos, vídeo vertical, 4K/HDR, MKV com várias trilhas e legendas, arquivos maiores que 1,5 GB.

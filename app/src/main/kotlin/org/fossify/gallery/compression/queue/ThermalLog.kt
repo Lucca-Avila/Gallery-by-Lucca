@@ -16,9 +16,10 @@ import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
 
 /**
- * Registro persistente de temperatura em `files/thermal_log.csv`, para analisar a pausa por temperatura depois de dias de uso.
+ * Registro persistente de temperatura em `no_backup/thermal_log.csv`, para analisar a pausa por temperatura depois de dias de uso.
  * Só observa: não decide nada nem muda a fila. Toda leitura e escrita roda numa thread própria; qualquer falha é ignorada
  * (vai só para o logcat). Linhas com mais de [MAX_AGE_DAYS] dias são descartadas e o arquivo fica perto de [MAX_BYTES].
+ * Não pode ficar em `files/`: aquela pasta É a lixeira do Fossify, e esvaziar a lixeira apaga tudo o que há nela.
  */
 object ThermalLog {
     const val START = "START"
@@ -30,6 +31,8 @@ object ThermalLog {
     const val STATUS = "STATUS"
     const val PREF = "PREF"
     const val MANUAL_PAUSE = "PAUSA_MANUAL"
+    const val MUXER_ERROR = "ERRO_MUXER"
+    const val MUXER_RETRY = "ERRO_MUXER_RETRY"
     private const val SAMPLE = "SAMPLE"
 
     private const val TAG = "ThermalLog"
@@ -49,6 +52,7 @@ object ThermalLog {
     // Acessados só na thread do executor.
     private var writes = 0
     private var rotatedOnce = false
+    private var migrated = false
     private var sampling: ScheduledFuture<*>? = null
     private var statusListener: Any? = null
     private var lastStatus = -1
@@ -131,7 +135,11 @@ object ThermalLog {
             csv(note),
         ).joinToString(",")
 
-        val file = File(context.filesDir, FILE_NAME)
+        val file = File(context.noBackupFilesDir, FILE_NAME)
+        if (!migrated) {
+            migrated = true
+            migrateLegacy(File(context.filesDir, FILE_NAME), file)
+        }
         if (!rotatedOnce || ++writes >= ROTATE_EVERY_WRITES || file.length() > MAX_BYTES) {
             rotatedOnce = true
             writes = 0
@@ -144,13 +152,25 @@ object ThermalLog {
     private fun csv(value: String) =
         if (value.any { it == ',' || it == '"' || it == '\n' }) "\"" + value.replace("\"", "\"\"").replace('\n', ' ') + "\"" else value
 
-    /** Tira as linhas com mais de [MAX_AGE_DAYS] dias e, se ainda passar de [MAX_BYTES], as mais antigas. Reescreve por arquivo temporário. */
-    private fun rotate(file: File) {
+    /** Traz o registro da pasta antiga (`files/`) para [target], sem perder linhas. */
+    internal fun migrateLegacy(legacy: File, target: File) {
+        if (!legacy.exists()) return
+        if (!target.exists() && legacy.renameTo(target)) return
+        val lines = legacy.readLines().drop(1)
+        if (lines.isNotEmpty()) target.appendText(lines.joinToString("\n", postfix = "\n"))
+        legacy.delete()
+    }
+
+    /**
+     * Tira as linhas com mais de [MAX_AGE_DAYS] dias e, se ainda passar de [MAX_BYTES], as mais antigas. Reescreve por arquivo temporário.
+     * Linha com horário ilegível fica: na dúvida não se apaga histórico (o limite de tamanho continua valendo).
+     */
+    internal fun rotate(file: File, now: OffsetDateTime = OffsetDateTime.now()) {
         if (!file.exists()) return
-        val cutoff = OffsetDateTime.now().minusDays(MAX_AGE_DAYS)
+        val cutoff = now.minusDays(MAX_AGE_DAYS)
         val lines = file.readLines().drop(1).filter { line ->
             val at = runCatching { OffsetDateTime.parse(line.substringBefore(','), formatter) }.getOrNull()
-            at != null && at.isAfter(cutoff)
+            at == null || at.isAfter(cutoff)
         }.toMutableList()
         var size = lines.sumOf { it.length + 1L }
         val trimmed = file.length() > MAX_BYTES

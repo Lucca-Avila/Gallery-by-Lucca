@@ -14,6 +14,7 @@ import org.fossify.gallery.compression.engine.CompressionException
 import org.fossify.gallery.compression.engine.CompressionPipeline
 import org.fossify.gallery.compression.engine.CompressionResult
 import org.fossify.gallery.compression.engine.DatePreserver
+import org.fossify.gallery.compression.engine.MAX_DELAY_BETWEEN_MUXER_SAMPLES_MS
 import org.fossify.gallery.compression.engine.PublishedFile
 import org.fossify.gallery.compression.engine.ResultVerifier
 import org.fossify.gallery.compression.engine.VideoCompressor
@@ -53,6 +54,7 @@ class QueueRunner(context: Context, private val callbacks: Callbacks) {
     private var stopReason: StopReason? = null
     private var skipRequested = false
     private var lastPercent = -1
+    private var muxerRetriedId: Long? = null
     private var active = false
 
     fun start() {
@@ -225,9 +227,36 @@ class QueueRunner(context: Context, private val callbacks: Callbacks) {
 
             override fun onError(error: CompressionException) {
                 compressor = null
-                fail(item, error.message ?: "")
+                if (error.muxingTimeout) onMuxerTimeout(item, info, index, total) else fail(item, error.message ?: "")
             }
         })
+    }
+
+    /** Refaz o item uma vez, sem contar como falha; no segundo erro igual, falha normal. Com pausa já pedida, só volta a aguardar. */
+    private fun onMuxerTimeout(item: QueueItem, info: VideoInfo, index: Int, total: Int) {
+        when {
+            pauseAfterCurrent -> {
+                ThermalLog.event(context, ThermalLog.MUXER_ERROR, item.id, "pausa pedida; item volta a aguardar")
+                endItem(item.copy(state = QueueItem.STATE_WAITING, phase = QueueItem.PHASE_NONE, progress = 0, partialPath = null), counted = false)
+            }
+
+            muxerRetriedId == item.id -> {
+                ThermalLog.event(context, ThermalLog.MUXER_ERROR, item.id, "segundo erro; item falhou")
+                val seconds = (MAX_DELAY_BETWEEN_MUXER_SAMPLES_MS / 1000).toInt()
+                fail(item, context.getString(R.string.cmp_q_muxer_failed_twice, seconds))
+            }
+
+            else -> {
+                muxerRetriedId = item.id
+                ThermalLog.event(context, ThermalLog.MUXER_ERROR, item.id, "primeiro erro")
+                ThermalLog.event(context, ThermalLog.MUXER_RETRY, item.id, "refazendo o item")
+                lastPercent = -1
+                QueueRepository.io(context, { dao -> dao.updateProgress(item.id, 0) }) { QueueRepository.notifyChanged() }
+                callbacks.onProgress(item, index, total, 0)
+                // Fora do callback do Transformer que acabou de falhar. Pausa ou pulo pedidos até lá são tratados em compress().
+                runOnMain { compress(item, info, index, total) }
+            }
+        }
     }
 
     /** "Apagar de vez" só vale com a confirmação dada neste processo; sem ela, o original é mantido. */

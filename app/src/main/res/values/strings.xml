@@ -387,6 +387,8 @@
     <string name="cmp_warn_no_hevc">Este aparelho não tem encoder H.265: será usado H.264.</string>
     <string name="cmp_err_no_decoder">O aparelho não consegue decodificar este vídeo (%1$s).</string>
     <string name="cmp_err_space">Pouco espaço livre no cache do app para comprimir este vídeo.</string>
+    <string name="cmp_err_muxer_timeout">A gravação do vídeo travou: o gravador ficou mais de %1$d s sem receber dados. O original não foi alterado.</string>
+    <string name="cmp_q_muxer_failed_twice">A gravação do vídeo travou duas vezes seguidas (mais de %1$d s sem receber dados). O original não foi alterado. Adicione o vídeo à fila de novo para tentar outra vez.</string>
     <string name="cmp_err_generic">Falha na compressão: %1$s</string>
     <string name="cmp_progress_title">Comprimindo…</string>
     <string name="cmp_progress_pct">%1$d%%</string>

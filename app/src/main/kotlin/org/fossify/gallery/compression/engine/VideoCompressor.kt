@@ -20,8 +20,12 @@ import androidx.media3.transformer.ExportResult
 import androidx.media3.transformer.ProgressHolder
 import androidx.media3.transformer.Transformer
 import androidx.media3.transformer.VideoEncoderSettings
+import org.fossify.gallery.R
 import java.io.File
 import java.util.UUID
+
+/** Tempo máximo sem amostras no gravador antes do ERROR_CODE_MUXING_TIMEOUT (padrão do Media3: 10 s). */
+const val MAX_DELAY_BETWEEN_MUXER_SAMPLES_MS = 60_000L
 
 /**
  * Comprime UM vídeo para um arquivo temporário no cache. Não conhece Activity: recebe Context, Uri e
@@ -85,6 +89,7 @@ class VideoCompressor(context: Context) {
             .setVideoMimeType(if (options.useHevc) MimeTypes.VIDEO_H265 else MimeTypes.VIDEO_H264)
             .setAudioMimeType(MimeTypes.AUDIO_AAC)
             .setEncoderFactory(encoderFactory)
+            .setMaxDelayBetweenMuxerSamplesMs(MAX_DELAY_BETWEEN_MUXER_SAMPLES_MS)
             .setLooper(Looper.getMainLooper())
             .addListener(object : Transformer.Listener {
                 override fun onCompleted(composition: Composition, exportResult: ExportResult) {
@@ -100,7 +105,14 @@ class VideoCompressor(context: Context) {
                 override fun onError(composition: Composition, exportResult: ExportResult, exportException: ExportException) {
                     finish()
                     out.delete()
-                    val audio = exportException.errorCodeName.contains("AUDIO") || exportException.errorCodeName.contains("ENCODER")
+                    if (exportException.errorCode == ExportException.ERROR_CODE_MUXING_TIMEOUT) {
+                        val seconds = (MAX_DELAY_BETWEEN_MUXER_SAMPLES_MS / 1000).toInt()
+                        listener.onError(
+                            CompressionException(appContext.getString(R.string.cmp_err_muxer_timeout, seconds), exportException, muxingTimeout = true)
+                        )
+                        return
+                    }
+                    val audio =exportException.errorCodeName.contains("AUDIO") || exportException.errorCodeName.contains("ENCODER")
                     val prefix = when {
                         audio && options.audioDownmixToStereo -> "Falha no áudio (mixagem para estéreo/AAC): "
                         audio && options.audioReencodeBitrate != null -> "Falha no áudio (recodificação para AAC): "
